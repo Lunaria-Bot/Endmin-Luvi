@@ -9,7 +9,6 @@ class AdminCog(commands.Cog):
         self.bot = bot
         self.role_service = RoleService()
 
-    # /set-tier-role
     @app_commands.command(
         name="set-tier-role",
         description="Set a role for a boss tier (1, 2 or 3)."
@@ -41,42 +40,9 @@ class AdminCog(commands.Cog):
             ephemeral=True
         )
 
-    # /set-card-role
-    @app_commands.command(
-        name="set-card-role",
-        description="Set a role for a card rarity (common, rare, epic, legendary)."
-    )
-    @app_commands.default_permissions(administrator=True)
-    @app_commands.describe(
-        rarity="Card rarity (common, rare, epic, legendary).",
-        role="Discord role to associate with this rarity."
-    )
-    async def set_card_role(self, interaction: Interaction, rarity: str, role: Role):
-        guild_id = interaction.guild_id
-
-        try:
-            self.role_service.set_card_role(guild_id, rarity, role.id)
-        except ValueError as e:
-            await interaction.response.send_message(
-                str(e),
-                ephemeral=True
-            )
-            return
-
-        logger.info(
-            f"/set-card-role rarity={rarity} role={role.id} "
-            f"by user={interaction.user.id} guild={guild_id}"
-        )
-
-        await interaction.response.send_message(
-            f"Rarity **{rarity.lower()}** has been set to role {role.mention}.",
-            ephemeral=True
-        )
-
-    # /view-settings
     @app_commands.command(
         name="view-settings",
-        description="View current role configuration for this server."
+        description="View current tier role configuration for this server."
     )
     @app_commands.default_permissions(administrator=True)
     async def view_settings(self, interaction: Interaction):
@@ -84,7 +50,7 @@ class AdminCog(commands.Cog):
         settings = self.role_service.get_settings(guild_id)
 
         embed = Embed(
-            title="Role configuration",
+            title="Tier Role Configuration",
             color=0x5865F2,
         )
 
@@ -94,10 +60,6 @@ class AdminCog(commands.Cog):
         embed.add_field(name="Tier 1", value=fmt(settings.tier1_role_id), inline=False)
         embed.add_field(name="Tier 2", value=fmt(settings.tier2_role_id), inline=False)
         embed.add_field(name="Tier 3", value=fmt(settings.tier3_role_id), inline=False)
-        embed.add_field(name="Card Common", value=fmt(settings.card_common_role_id), inline=False)
-        embed.add_field(name="Card Rare", value=fmt(settings.card_rare_role_id), inline=False)
-        embed.add_field(name="Card Epic", value=fmt(settings.card_epic_role_id), inline=False)
-        embed.add_field(name="Card Legendary", value=fmt(settings.card_legendary_role_id), inline=False)
 
         logger.info(f"/view-settings used by user={interaction.user.id} guild={guild_id}")
 

@@ -4,3 +4,4 @@ SQLAlchemy
 loguru
 APScheduler
 psycopg2-binary
+PyNaCl

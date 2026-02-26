@@ -57,9 +57,9 @@ class AdminCog(commands.Cog):
         def fmt(role_id: int | None) -> str:
             return f"<@&{role_id}>" if role_id else "❌ Not set"
 
-        embed.add_field(name="Tier 1", value=fmt(settings.tier1_role_id), inline=False)
-        embed.add_field(name="Tier 2", value=fmt(settings.tier2_role_id), inline=False)
-        embed.add_field(name="Tier 3", value=fmt(settings.tier3_role_id), inline=False)
+        embed.add_field(name="Tier 1", value=fmt(settings["tier1_role_id"]), inline=False)
+        embed.add_field(name="Tier 2", value=fmt(settings["tier2_role_id"]), inline=False)
+        embed.add_field(name="Tier 3", value=fmt(settings["tier3_role_id"]), inline=False)
 
         logger.info(f"/view-settings used by user={interaction.user.id} guild={guild_id}")
 

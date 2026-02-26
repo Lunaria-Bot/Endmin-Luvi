@@ -12,7 +12,6 @@ def init_db():
     logger.info("[DB] Checking database connection...")
 
     try:
-        # SQLAlchemy 2.0 requires text() for raw SQL
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logger.info("[DB] Connection OK.")
@@ -20,10 +19,9 @@ def init_db():
         logger.error(f"[DB] Connection failed: {e}")
         raise
 
-    logger.info("[DB] Inspecting existing tables...")
-    inspector = inspect(engine)
-    existing_tables = inspector.get_table_names()
-    logger.info(f"[DB] Existing tables: {existing_tables}")
+    # IMPORTANT : importer les modèles AVANT create_all()
+    from models.guild_settings import GuildSettings
+    from models.user_settings import UserSettings
 
     logger.info("[DB] Creating tables if missing...")
     Base.metadata.create_all(bind=engine)

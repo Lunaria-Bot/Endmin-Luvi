@@ -6,6 +6,7 @@ from models.base import init_db
 from cogs.admin import AdminCog
 from cogs.notifications import NotificationsCog
 from cogs.help import HelpCog
+from services.reminder_scheduler import ReminderScheduler
 
 
 class LuviBot(commands.Bot):
@@ -20,11 +21,17 @@ class LuviBot(commands.Bot):
             application_id=settings.APP_ID
         )
 
+        # Scheduler instance
+        self.scheduler = ReminderScheduler()
+
     async def setup_hook(self):
         logger.info("Loading cogs...")
         await self.add_cog(AdminCog(self))
         await self.add_cog(NotificationsCog(self))
         await self.add_cog(HelpCog(self))
+
+        logger.info("Starting scheduler...")
+        self.scheduler.start()
 
         logger.info("Syncing application commands...")
         await self.tree.sync()

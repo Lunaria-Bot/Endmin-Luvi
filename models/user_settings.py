@@ -12,3 +12,5 @@ class UserSettings(Base):
     notify_expedition = Column(Boolean, default=False)
     notify_stamina = Column(Boolean, default=False)
     notify_raid = Column(Boolean, default=False)
+    
+print(">>> LOADED USER_SETTINGS MODEL <<<")

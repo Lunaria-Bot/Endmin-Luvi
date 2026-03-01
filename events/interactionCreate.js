@@ -7,7 +7,8 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction) {
-        // FIX: Discord.js v14 uses isChatInputCommand()
+
+        // Slash commands
         if (interaction.isChatInputCommand()) {
             const command = interaction.client.commands.get(interaction.commandName);
             if (!command) return;
@@ -28,8 +29,8 @@ module.exports = {
             }
         }
 
+        // Buttons
         else if (interaction.isButton()) {
-            // ton code bouton reste inchangé
             const { customId, user, channel, message } = interaction;
 
             if (customId.startsWith('stamina_')) {
@@ -38,7 +39,7 @@ module.exports = {
 
                 if (mentionedUserId && user.id !== mentionedUserId) {
                     try {
-                        return await interaction.reply({ content: "You can't interact with this button.", flags: 1 << 6 });
+                        return await interaction.reply({ content: "You can't interact with this button.", ephemeral: true });
                     } catch (err) {
                         if (err.code === 10062) return;
                         throw err;
@@ -46,7 +47,7 @@ module.exports = {
                 }
 
                 try {
-                    await interaction.deferReply({ flags: 1 << 6 });
+                    await interaction.deferReply({ ephemeral: true });
                 } catch (err) {
                     if (err.code === 10062) {
                         console.log(`[Interaction] Interaction ${interaction.id} expired before deferring.`);
@@ -99,7 +100,7 @@ module.exports = {
                     if (interaction.deferred || interaction.replied) {
                         await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
                     } else {
-                        await interaction.reply({ content: 'Sorry, there was an error setting your reminder.', flags: 1 << 6 });
+                        await interaction.reply({ content: 'Sorry, there was an error setting your reminder.', ephemeral: true });
                     }
                 }
             }

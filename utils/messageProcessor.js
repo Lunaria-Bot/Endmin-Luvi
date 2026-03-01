@@ -7,7 +7,7 @@ const {
   parseRaidViewComponent,
 } = require('./embedParser');
 
-const { getSettings, updateSettings } = require('./settingsManager');
+const { getSettings } = require('./settingsManager');
 const Reminder = require('../models/Reminder');
 const { sendError } = require('./logger');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -17,14 +17,12 @@ const LUVI_ID = '1269481871021047891';
 
 async function processMessage(message, oldMessage = null) {
   if (!message.guild || message.author.id !== LUVI_ID) return;
-
-  // Ignore messages older than 60 seconds to prevent processing stale events
   if (Date.now() - message.createdTimestamp > 60000) return;
 
   try {
     // === STAMINA DETECTION ===
     if (message.content.includes("you don't have enough stamina!")) {
-      let userId;
+      let userId = null;
 
       if (message.interaction?.user?.id) {
         userId = message.interaction.user.id;
@@ -36,23 +34,14 @@ async function processMessage(message, oldMessage = null) {
           userId = referencedMessage.author.id;
         } catch (error) {
           console.error('Error fetching referenced message:', error);
-          // Not critical enough to send to webhook, just console is fine for this specific logic check
         }
       }
+
       if (userId) {
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('stamina_25')
-            .setLabel('Remind at 25% Stamina')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setCustomId('stamina_50')
-            .setLabel('Remind at 50% Stamina')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setCustomId('stamina_100')
-            .setLabel('Remind at 100% Stamina')
-            .setStyle(ButtonStyle.Primary)
+          new ButtonBuilder().setCustomId('stamina_25').setLabel('Remind at 25% Stamina').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('stamina_50').setLabel('Remind at 50% Stamina').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('stamina_100').setLabel('Remind at 100% Stamina').setStyle(ButtonStyle.Primary)
         );
 
         try {
@@ -71,27 +60,22 @@ async function processMessage(message, oldMessage = null) {
       }
     }
 
-    // Handle Embeds or Components
+    // === EMBEDS / COMPONENTS ===
     const embed = message.embeds[0];
     const components = message.components;
 
+    // RAID FATIGUE
     const raidInfo = embed ? parseRaidViewEmbed(embed) : parseRaidViewComponent(components);
     if (raidInfo) {
-      // raidInfo is an array of { userId, fatigueMillis }
-      for (const fatiguedUser of raidInfo) {
-        const { userId, fatigueMillis } = fatiguedUser;
-
-        // To prevent duplicate reminders from being created for the same fatigue event
-        // (since raid embeds can be updated frequently), we check for an existing reminder
-        // within a small time window around when this one would be set.
-        const fiveSeconds = 5000;
+      for (const { userId, fatigueMillis } of raidInfo) {
         const remindAt = new Date(Date.now() + fatigueMillis);
+
         const existingReminder = await Reminder.findOne({
           userId,
           type: 'raid',
           remindAt: {
-            $gte: new Date(remindAt.getTime() - fiveSeconds),
-            $lte: new Date(remindAt.getTime() + fiveSeconds),
+            $gte: new Date(remindAt.getTime() - 5000),
+            $lte: new Date(remindAt.getTime() + 5000),
           },
         });
 
@@ -105,9 +89,7 @@ async function processMessage(message, oldMessage = null) {
               reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again`,
             });
           } catch (error) {
-            if (error.code === 11000) {
-              // Suppress duplicate key errors
-            } else {
+            if (error.code !== 11000) {
               console.error(`[ERROR] Failed to create reminder for raid fatigue: ${error.message}`, error);
               await sendError(`[ERROR] Failed to create reminder for raid fatigue: ${error.message}`);
             }
@@ -116,48 +98,34 @@ async function processMessage(message, oldMessage = null) {
       }
     }
 
+    // EXPEDITION RESEND
     const isResendFromEmbed = embed?.title?.endsWith("Expedition Resend Results");
     const expInfoFromComp = parseExpeditionComponent(components);
     const isResendFromComp = expInfoFromComp?.isResend;
 
     if (isResendFromEmbed || isResendFromComp) {
-      let userId = null;
+      let userId = message.interaction?.user?.id;
 
-      // 1. Try interaction metadata (direct or from reference)
-      if (message.interactionMetadata?.user?.id) userId = message.interactionMetadata.user.id;
-      else if (message.interaction?.user?.id) userId = message.interaction.user.id;
-
-      // 2. Try fetching referenced message if we still don't have a user ID
       if (!userId && message.reference?.messageId) {
         try {
           const refMessage = await message.fetchReference();
-          // Try getting ID from reference's interaction logic
-          userId = refMessage.interactionMetadata?.user?.id || refMessage.interaction?.user?.id;
+          userId = refMessage.interaction?.user?.id;
 
-          // 3. Fallback: Parse the referenced message for username if interaction metadata is missing
           if (!userId) {
             const refEmbed = refMessage.embeds[0];
             const refComponents = refMessage.components;
             const refExpInfo = refEmbed ? parseExpeditionEmbed(refEmbed) : parseExpeditionComponent(refComponents);
 
-            if (refExpInfo && refExpInfo.username) {
-              try {
-                const members = await message.guild.members.fetch({ query: refExpInfo.username, limit: 1 });
-                const member = members.first();
-                if (member) userId = member.id;
-                else console.warn(`[WARN] Could not find guild member for username: ${refExpInfo.username} from referenced message`);
-              } catch (err) {
-                console.error(`[ERROR] Failed to fetch member for username from reference: ${refExpInfo.username}`, err);
-              }
+            if (refExpInfo?.username) {
+              const members = await message.guild.members.fetch({ query: refExpInfo.username, limit: 1 });
+              const member = members.first();
+              if (member) userId = member.id;
             }
           }
         } catch (err) {
-          console.warn("[WARN] Failed to fetch referenced message for ID resolution:", err.message);
+          console.warn("[WARN] Failed to fetch referenced message:", err.message);
         }
       }
-
-      const now = Date.now();
-      const remindAt = new Date(now + 7_200_000); // 2 hours
 
       if (userId) {
         try {
@@ -165,59 +133,43 @@ async function processMessage(message, oldMessage = null) {
             userId,
             guildId: message.guild.id,
             channelId: message.channel.id,
-            remindAt,
+            remindAt: new Date(Date.now() + 7200000),
             type: 'expedition',
-            reminderMessage: `<@${userId}>, your </expeditions:1472170030337626153> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+            reminderMessage: `<@${userId}>, your </expeditions:1472170030337626153> cards are ready to be claimed!`,
           });
         } catch (err) {
           console.error(`[ERROR] Failed to set timer for expedition claim: ${err.message}`, err);
           await sendError(`[ERROR] Failed to set timer for expedition claim: ${err.message}`);
         }
       }
+    }
 
-    } else {
-      const expeditionInfo = embed ? parseExpeditionEmbed(embed) : expInfoFromComp;
-      if (expeditionInfo && !expeditionInfo.isResend) {
-        let userId = message.interaction?.user?.id;
+    // EXPEDITION NORMAL
+    const expeditionInfo = embed ? parseExpeditionEmbed(embed) : expInfoFromComp;
+    if (expeditionInfo && !expeditionInfo.isResend) {
+      let userId = message.interaction?.user?.id;
 
-        if (!userId && expeditionInfo.username) {
-          try {
-            const members = await message.guild.members.fetch({ query: expeditionInfo.username, limit: 1 });
-            const member = members.first();
-            if (member) userId = member.id;
-            else await sendError(`[WARN] Could not find a guild member with username: ${expeditionInfo.username}`);
-          } catch (err) {
-            console.error(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`, err);
-            await sendError(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`);
-          }
+      if (!userId && expeditionInfo.username) {
+        try {
+          const members = await message.guild.members.fetch({ query: expeditionInfo.username, limit: 1 });
+          const member = members.first();
+          if (member) userId = member.id;
+        } catch (err) {
+          console.error(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`, err);
+          await sendError(`[ERROR] Failed to fetch member for username: ${expeditionInfo.username}`);
         }
+      }
 
-        if (userId) {
-          const now = Date.now();
+      if (userId) {
+        const maxCard = expeditionInfo.cards.reduce((a, b) => (a.remainingMillis > b.remainingMillis ? a : b));
 
-          // Find the card with the maximum remaining time
-          let maxCard = null;
-          for (const card of expeditionInfo.cards) {
-            if (!maxCard || card.remainingMillis > maxCard.remainingMillis) {
-              maxCard = card;
-            }
-          }
+        if (maxCard) {
+          try {
+            const remindAt = new Date(Date.now() + maxCard.remainingMillis);
 
-          if (maxCard) {
-            try {
-              const remindAt = new Date(now + maxCard.remainingMillis);
+            const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
 
-              // Check for existing expedition reminder
-              const existingReminder = await Reminder.findOne({ userId, type: 'expedition' });
-
-              if (existingReminder) {
-                const timeDiff = Math.abs(existingReminder.remindAt.getTime() - remindAt.getTime());
-                // If the difference is less than 1 minute (60000ms), assume it's the same reminder and do nothing
-                if (timeDiff < 60000) {
-                  return;
-                }
-              }
-
+            if (!existingReminder || Math.abs(existingReminder.remindAt - remindAt) >= 60000) {
               await setTimer(message.client, {
                 userId,
                 cardId: maxCard.cardId,
@@ -225,43 +177,33 @@ async function processMessage(message, oldMessage = null) {
                 channelId: message.channel.id,
                 remindAt,
                 type: 'expedition',
-                reminderMessage: `<@${userId}>, your </expeditions:1472170030337626153> cards are ready to be claimed! \n-# Use \`@Luvi#1792 exps\` or \`/expeditions\` again for the bot to remind you next time.`,
+                reminderMessage: `<@${userId}>, your </expeditions:1472170030337626153> cards are ready to be claimed!`,
               });
-            } catch (error) {
-              console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
-              await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
             }
+          } catch (error) {
+            console.error(`[ERROR] Failed to create reminder for expedition: ${error.message}`, error);
+            await sendError(`[ERROR] Failed to create reminder for expedition: ${error.message}`);
           }
-        } else if (embed) { // Only log if it was an embed (for components, we might not have a username yet)
-          await sendError(`[WARN] Could not determine a userId for the expedition message. Title: ${embed.title}`);
         }
-        return;
       }
     }
 
-    // === RAID SPAWN DETECTION ===
-    const title = ((embed ? embed.title : "") || "").toLowerCase();
-    const description = ((embed ? embed.description : "") || "").toLowerCase();
+    // RAID SPAWN
+    const title = (embed?.title || "").toLowerCase();
+    const description = (embed?.description || "").toLowerCase();
 
     if (title.includes("raid spawned") || description.includes("raid spawned")) {
-      let userId = null;
+      let userId = message.interaction?.user?.id;
 
-      // 1. Check if it was a slash command interaction
-      if (message.interaction?.user?.id) {
-        userId = message.interaction.user.id;
-      }
-      // 2. Fallback: Check recent text messages
-      else {
+      if (!userId) {
         try {
           const messages = await message.channel.messages.fetch({ limit: 20 });
           const spawnMsg = messages.find(m =>
             !m.author.bot &&
             /\braid\s+spawn\b/i.test(m.content) &&
-            (Date.now() - m.createdTimestamp < 20000) // Within last 20 seconds
+            Date.now() - m.createdTimestamp < 20000
           );
-          if (spawnMsg) {
-            userId = spawnMsg.author.id;
-          }
+          if (spawnMsg) userId = spawnMsg.author.id;
         } catch (err) {
           console.error("Failed to fetch messages for raid spawn check:", err);
           await sendError(`[ERROR] Failed to fetch messages for raid spawn check: ${err.message}`);
@@ -269,72 +211,46 @@ async function processMessage(message, oldMessage = null) {
       }
 
       if (userId) {
-        const thirtyMinutes = 30 * 60 * 1000;
-        const remindAt = new Date(Date.now() + thirtyMinutes);
-
         try {
           await setTimer(message.client, {
             userId,
             guildId: message.guild.id,
             channelId: message.channel.id,
-            remindAt,
+            remindAt: new Date(Date.now() + 1800000),
             type: 'raid_spawn',
-            reminderMessage: `<@${userId}>, your raid spawn cooldown is up! You can spawn another raid now </raid spawn:1472170030723764364>`
+            reminderMessage: `<@${userId}>, your raid spawn cooldown is up!`,
           });
         } catch (error) {
-          if (error.code === 11000) {
-            // Suppress log
-          } else {
+          if (error.code !== 11000) {
             console.error(`[ERROR] Failed to create reminder for raid spawn: ${error.message}`, error);
             await sendError(`[ERROR] Failed to create reminder for raid spawn: ${error.message}`);
           }
         }
-      } else {
-        await sendError(`[WARN] Could not determine a userId for the raid spawn message. Message ID: ${message.id}`);
       }
-      return;
     }
 
-    // === CARD DROP DETECTION ===
+    // CARD DROP
     if (title.includes("card dropped")) {
       try {
         const footer = embed?.footer;
-        if (footer && footer.iconURL) {
-          const avatarUrlMatch = footer.iconURL.match(/\/(?:avatars|users)\/(\d+)/);
+        const match = footer?.iconURL?.match(/\/(?:avatars|users)\/(\d+)/);
 
-          if (avatarUrlMatch && avatarUrlMatch[1]) {
-            const userId = avatarUrlMatch[1];
-            const oneHour = 60 * 60 * 1000;
-            const remindAt = new Date(Date.now() + oneHour);
+        if (match) {
+          const userId = match[1];
 
-            try {
-              await setTimer(message.client, {
-                userId,
-                guildId: message.guild.id,
-                channelId: message.channel.id,
-                remindAt,
-                type: 'card_drop',
-                reminderMessage: `<@${userId}>, your card drop cooldown is up! You can drop cards again using </drop:1472170029905874977>`
-              });
-            } catch (error) {
-              if (error.code === 11000) {
-                // Suppress duplicate reminder logs
-              } else {
-                console.error(`[ERROR] Failed to create reminder for card drop: ${error.message}`, error);
-                await sendError(`[ERROR] Failed to create reminder for card drop: ${error.message}`);
-              }
-            }
-          } else {
-            await sendError(`[WARN] Card drop: Could not extract user ID from footer iconURL: ${footer.iconURL}`);
-          }
-        } else {
-          await sendError(`[WARN] Card drop detected but no footer or iconURL found. Embed title: ${embed?.title}`);
+          await setTimer(message.client, {
+            userId,
+            guildId: message.guild.id,
+            channelId: message.channel.id,
+            remindAt: new Date(Date.now() + 3600000),
+            type: 'card_drop',
+            reminderMessage: `<@${userId}>, your card drop cooldown is up!`,
+          });
         }
       } catch (error) {
         console.error(`[ERROR] Error processing card drop: ${error.message}`, error);
         await sendError(`[ERROR] Error processing card drop: ${error.message}`);
       }
-      return;
     }
 
   } catch (error) {
@@ -344,9 +260,8 @@ async function processMessage(message, oldMessage = null) {
 
 async function processBossAndCardMessage(message) {
   if (!message.guild || message.author.id !== LUVI_ID) return;
-
-  // Ignore messages older than 60 seconds to prevent processing stale events
   if (Date.now() - message.createdTimestamp > 60000) return;
+
   try {
     const embed = message.embeds[0];
     const components = message.components;
@@ -361,12 +276,15 @@ async function processBossAndCardMessage(message) {
         'Tier 2': settings.t2RoleId,
         'Tier 3': settings.t3RoleId,
       };
+
       const roleToPing = tierMap[bossInfo.tier];
 
       if (roleToPing) {
         try {
-          const content = `<@&${roleToPing}> **${bossInfo.tier} Boss Spawned!**\nBoss: **${bossInfo.bossName}**`;
-          await message.channel.send({ content, allowedMentions: { roles: [roleToPing] } });
+          await message.channel.send({
+            content: `<@&${roleToPing}> **${bossInfo.tier} Boss Spawned!**\nBoss: **${bossInfo.bossName}**`,
+            allowedMentions: { roles: [roleToPing] },
+          });
         } catch (err) {
           if (err.code === 50013 || err.code === 50001) {
             console.warn(`[WARN] Missing permissions to send boss ping in channel ${message.channel.id}`);
@@ -376,24 +294,11 @@ async function processBossAndCardMessage(message) {
           }
         }
       }
-      return;
     }
 
   } catch (error) {
     console.error(`[ERROR] Unhandled error in processBossAndCardMessage: ${error.message}`, error);
   }
-}
-
-function formatDuration(ms) {
-  const seconds = Math.floor((ms / 1000) % 60);
-  const minutes = Math.floor((ms / (1000 * 60)) % 60);
-  const hours = Math.floor((ms / (1000 * 60 * 60)));
-
-  const parts = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (seconds > 0) parts.push(`${seconds}s`);
-  return parts.join(' ') || '0s';
 }
 
 module.exports = { processMessage, processBossAndCardMessage };

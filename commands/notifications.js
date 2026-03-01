@@ -33,13 +33,15 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    const subcommand = interaction.options.getSubcommand();
-    const userId = interaction.user.id;
+    try {
+      const subcommand = interaction.options.getSubcommand();
+      const userId = interaction.user.id;
 
-    if (subcommand === 'view') {
-      let settings = getUserSettings(userId);
-      if (!settings) {
-        settings = {
+      // Always defer to avoid "Unknown interaction"
+      await interaction.deferReply({ ephemeral: true });
+
+      if (subcommand === 'view') {
+        let settings = getUserSettings(userId) || {
           expedition: true,
           stamina: true,
           raid: true,
@@ -47,39 +49,42 @@ module.exports = {
           card_drop: true,
           dmNotifications: false
         };
+
+        return await interaction.editReply({
+          embeds: [{
+            title: 'Your Notification Settings',
+            color: 0x5865F2,
+            fields: [
+              { name: 'Expedition', value: settings.expedition ? 'Enabled' : 'Disabled', inline: true },
+              { name: 'Stamina', value: settings.stamina ? 'Enabled' : 'Disabled', inline: true },
+              { name: 'Raid Fatigue', value: settings.raid ? 'Enabled' : 'Disabled', inline: true },
+              { name: 'Raid Spawn', value: settings.raid_spawn ? 'Enabled' : 'Disabled', inline: true },
+              { name: 'Card Drop', value: settings.card_drop ? 'Enabled' : 'Disabled', inline: true },
+              { name: 'DM Notifications', value: settings.dmNotifications ? 'Enabled' : 'Disabled', inline: true },
+            ]
+          }]
+        });
       }
 
-      await interaction.reply({
-        ephemeral: true,
-        embeds: [{
-          title: 'Your Notification Settings',
-          color: 0x5865F2,
-          fields: [
-            { name: 'Expedition', value: settings.expedition ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Stamina', value: settings.stamina ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Raid Fatigue', value: settings.raid ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Raid Spawn', value: settings.raid_spawn ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Card Drop', value: settings.card_drop ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'DM Notifications', value: settings.dmNotifications ? 'Enabled' : 'Disabled', inline: true },
-          ]
-        }]
-      });
+      if (subcommand === 'set') {
+        const type = interaction.options.getString('type');
+        const enabled = interaction.options.getBoolean('enabled');
 
-    } else if (subcommand === 'set') {
-      const type = interaction.options.getString('type');
-      const enabled = interaction.options.getBoolean('enabled');
+        await updateUserSettings(userId, { [type]: enabled });
 
-      await updateUserSettings(userId, { [type]: enabled });
+        const replyContent =
+          type === 'dmNotifications'
+            ? `You will now ${enabled ? 'receive' : 'stop receiving'} reminders in your DMs.`
+            : `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
 
-      const replyContent =
-        type === 'dmNotifications'
-          ? `You will now ${enabled ? 'receive' : 'stop receiving'} reminders in your DMs.`
-          : `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
+        return await interaction.editReply({ content: replyContent });
+      }
 
-      await interaction.reply({
-        ephemeral: true,
-        content: replyContent
-      });
+    } catch (error) {
+      console.error(`[ERROR] /notifications failed:`, error);
+      try {
+        await interaction.editReply({ content: 'An error occurred while processing your request.' });
+      } catch {}
     }
   },
 };

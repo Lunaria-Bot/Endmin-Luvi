@@ -9,31 +9,32 @@ module.exports = {
     .setDescription('View current boss tier roles'),
 
   async execute(interaction) {
-    if (!interaction.inGuild()) {
-      return interaction.reply({ content: 'This command can only be used in a server.', flags: 1 << 6 });
-    }
-
-    const member = interaction.member;
-
-    const hasPermission =
-      member.permissions.has(PermissionsBitField.Flags.ManageRoles) ||
-      interaction.user.id === BOT_OWNER_ID;
-
-    if (!hasPermission) {
-      return interaction.reply({
-        content: '❌ You do not have permission to use this command.',
-        flags: 1 << 6,
-      });
-    }
-
     try {
+      if (!interaction.inGuild()) {
+        return interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+      }
+
+      const member = interaction.member;
+
+      const hasPermission =
+        member.permissions.has(PermissionsBitField.Flags.ManageRoles) ||
+        interaction.user.id === BOT_OWNER_ID;
+
+      if (!hasPermission) {
+        return interaction.reply({
+          content: '❌ You do not have permission to use this command.',
+          ephemeral: true,
+        });
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+
       const guildId = interaction.guild.id;
-      const settings = await BotSettings.findOne({ guildId });
+      const settings = await BotSettings.findOne({ guildId }).lean();
 
       if (!settings) {
-        return interaction.reply({
+        return interaction.editReply({
           content: '⚠️ No settings found for this server.',
-          flags: 1 << 6,
         });
       }
 
@@ -52,10 +53,13 @@ module.exports = {
         footer: { text: 'Luvi Helper Settings' }
       };
 
-      await interaction.reply({ embeds: [embed], flags: 1 << 6 });
+      return interaction.editReply({ embeds: [embed] });
+
     } catch (error) {
       console.error(`[ERROR] Failed to view settings: ${error.message}`, error);
-      await interaction.reply({ content: '❌ An error occurred while trying to view settings.', flags: 1 << 6 });
+      try {
+        return interaction.editReply({ content: '❌ An error occurred while trying to view settings.' });
+      } catch {}
     }
   },
 };

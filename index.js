@@ -91,7 +91,10 @@ loadCommandsRecursively(commandsPath);
 
 // --- Load Events ---
 const eventsPath = path.join(__dirname, 'events');
+console.log("EVENTS PATH:", eventsPath);
+
 const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+console.log("EVENT FILES FOUND:", eventFiles);
 
 for (const file of eventFiles) {
   const filePath = path.join(eventsPath, file);
@@ -115,6 +118,34 @@ for (const file of eventFiles) {
     console.error(`[EVENT ERROR] Failed to load ${file}:`, err);
   }
 }
+
+// --- Message Processing ---
+const { processMessage, processBossAndCardMessage } = require('./utils/messageProcessor');
+
+client.on(Events.MessageCreate, async (message) => {
+  await processMessage(message);
+  await processBossAndCardMessage(message);
+});
+
+client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+  if (newMessage.author.id !== '1269481871021047891') return;
+  await processMessage(newMessage, oldMessage);
+});
+
+// --- Guild Join Setup ---
+client.on(Events.GuildCreate, async (guild) => {
+  try {
+    const defaultChannel = guild.channels.cache
+      .filter(ch =>
+        ch.type === 0 &&
+        ch.permissionsFor(guild.members.me).has(PermissionsBitField.Flags.SendMessages)
+      )
+      .first();
+
+    if (!defaultChannel) {
+      console.log(`No accessible text channel found in guild ${guild.name}`);
+      return;
+    }
 
     const guideMessage = `
 **Hello! Thanks for adding Luvi Helper Bot!**

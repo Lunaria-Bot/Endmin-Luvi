@@ -12,7 +12,7 @@ function loadCommands(dir) {
     const fullPath = path.join(dir, file);
 
     if (fs.statSync(fullPath).isDirectory()) {
-      loadCommands(fullPath); // recursive load
+      loadCommands(fullPath);
       continue;
     }
 

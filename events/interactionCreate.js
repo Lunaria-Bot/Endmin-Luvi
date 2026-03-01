@@ -1,45 +1,74 @@
-const { Events } = require('discord.js');
+const { Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const Reminder = require('../models/Reminder');
 const { setTimer } = require('../utils/timerManager');
 const { sendLog, sendError } = require('../utils/logger');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+// GLOBAL ERROR LOGGING
+process.on('unhandledRejection', (reason) => {
+    console.error('[UNHANDLED REJECTION]', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('[UNCAUGHT EXCEPTION]', err);
+});
 
 module.exports = {
     name: Events.InteractionCreate,
+
     async execute(interaction) {
+
+        // LOG EVERY INTERACTION
+        console.log(`[INTERACTION] ${interaction.type} | User: ${interaction.user?.id} | Command: ${interaction.commandName || interaction.customId}`);
+
+        // DEBUG TIMEOUT: warn if no reply after 2 seconds
+        setTimeout(() => {
+            if (!interaction.replied && !interaction.deferred) {
+                console.warn(`[WARN] Interaction ${interaction.id} (${interaction.commandName || interaction.customId}) still not replied after 2s`);
+            }
+        }, 2000);
 
         try {
 
-            // === SLASH COMMANDS ===
+            // ============================
+            // SLASH COMMANDS
+            // ============================
             if (interaction.isChatInputCommand()) {
                 const command = interaction.client.commands.get(interaction.commandName);
-                if (!command) return;
+                if (!command) {
+                    console.warn(`[WARN] Command not found: ${interaction.commandName}`);
+                    return;
+                }
+
+                console.log(`[CMD] Running ${interaction.commandName}`);
 
                 try {
                     await command.execute(interaction);
+                    console.log(`[CMD] ${interaction.commandName} completed`);
                 } catch (error) {
-                    console.error(`Error executing command ${interaction.commandName}:`, error);
-                    await sendError(`[ERROR] Slash command failed: ${interaction.commandName}\n${error.message}`);
+                    console.error(`[CMD ERROR] ${interaction.commandName}:`, error);
+                    await sendError(`[CMD ERROR] ${interaction.commandName}: ${error.message}`);
 
                     try {
                         if (interaction.replied || interaction.deferred) {
-                            await interaction.followUp({ content: 'There was an error executing this command!', ephemeral: true });
+                            await interaction.followUp({ content: 'There was an error executing this command.', ephemeral: true });
                         } else {
-                            await interaction.reply({ content: 'There was an error executing this command!', ephemeral: true });
+                            await interaction.reply({ content: 'There was an error executing this command.', ephemeral: true });
                         }
                     } catch (e) {
-                        if (e.code !== 10062) {
-                            console.error(`Error sending error reply for ${interaction.commandName}:`, e);
-                        }
+                        if (e.code !== 10062) console.error(`[FOLLOWUP ERROR]`, e);
                     }
                 }
 
-                return; // 🔥 IMPORTANT : empêcher l’exécution du reste
+                return;
             }
 
-            // === BUTTONS ===
+            // ============================
+            // BUTTONS
+            // ============================
             if (interaction.isButton()) {
                 const { customId, user, channel, message } = interaction;
+
+                console.log(`[BUTTON] ${customId} clicked by ${user.id}`);
 
                 if (customId.startsWith('stamina_')) {
                     const mentionedUserIdMatch = message.content.match(/<@(\d+)>/);
@@ -49,7 +78,7 @@ module.exports = {
                         try {
                             return await interaction.reply({ content: "You can't interact with this button.", ephemeral: true });
                         } catch (err) {
-                            if (err.code !== 10062) throw err;
+                            if (err.code !== 10062) console.error(err);
                             return;
                         }
                     }
@@ -57,7 +86,10 @@ module.exports = {
                     try {
                         await interaction.deferReply({ ephemeral: true });
                     } catch (err) {
-                        if (err.code === 10062) return;
+                        if (err.code === 10062) {
+                            console.warn(`[BUTTON] Interaction expired before defer.`);
+                            return;
+                        }
                         throw err;
                     }
 
@@ -86,7 +118,7 @@ module.exports = {
 
                         await interaction.editReply({ content: confirmationMessage });
 
-                        await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
+                        await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}`);
 
                         const disabledRow = new ActionRowBuilder()
                             .addComponents(
@@ -102,23 +134,23 @@ module.exports = {
                         await sendError(`[ERROR] Failed to create stamina reminder: ${error.message}`);
 
                         try {
-                            if (interaction.deferred || interaction.replied) {
-                                await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
-                            } else {
-                                await interaction.reply({ content: 'Sorry, there was an error setting your reminder.', ephemeral: true });
-                            }
+                            await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
                         } catch (e) {
                             if (e.code !== 10062) console.error(e);
                         }
                     }
                 }
 
-                return; // 🔥 IMPORTANT
+                return;
             }
 
         } catch (fatal) {
             console.error(`[FATAL] Unhandled error in interactionCreate:`, fatal);
-            await sendError(`[FATAL] Unhandled error in interactionCreate:\n${fatal.message}`);
+            await sendError(`[FATAL] Unhandled error in interactionCreate: ${fatal.message}`);
+
+            if (fatal.code) {
+                console.error(`[DISCORD ERROR] Code: ${fatal.code}, Message: ${fatal.message}`);
+            }
         }
     },
 };

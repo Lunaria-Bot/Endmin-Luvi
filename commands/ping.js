@@ -6,7 +6,10 @@ module.exports = {
     .setDescription('Check the bot latency'),
 
   async execute(interaction) {
+    await interaction.deferReply({ ephemeral: true });
+
     const ping = interaction.client.ws.ping;
-    await interaction.reply(`🏓 Pong! Bot latency is ${ping}ms.`);
+
+    await interaction.editReply(`🏓 Pong! Bot latency is ${ping}ms.`);
   },
 };

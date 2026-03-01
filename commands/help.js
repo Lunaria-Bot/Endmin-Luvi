@@ -1,4 +1,3 @@
-
 const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
@@ -7,7 +6,7 @@ module.exports = {
     .setDescription('Shows setup instructions for Luvi Helper Bot'),
 
   async execute(interaction) {
- const helpMessage = `
+    const helpMessage = `
 **Luvi Helper Bot Setup Guide**
 
 1️⃣ **Set Boss Ping Roles:**
@@ -36,6 +35,6 @@ module.exports = {
 For bugs or suggestions, join the support server (link in bio).
 `;
 
-    await interaction.reply({ content: helpMessage, flags: 1 << 6 }); 
+    await interaction.reply({ content: helpMessage, ephemeral: true });
   },
 };

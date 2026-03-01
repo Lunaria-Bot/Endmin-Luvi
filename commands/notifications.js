@@ -31,6 +31,7 @@ module.exports = {
             .setDescription('Whether to enable or disable this notification.')
             .setRequired(true))
     ),
+
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
     const userId = interaction.user.id;
@@ -38,12 +39,21 @@ module.exports = {
     if (subcommand === 'view') {
       let settings = getUserSettings(userId);
       if (!settings) {
-        settings = { expedition: true, stamina: true, raid: true, raid_spawn: true, card_drop: true, dmNotifications: false };
+        settings = {
+          expedition: true,
+          stamina: true,
+          raid: true,
+          raid_spawn: true,
+          card_drop: true,
+          dmNotifications: false
+        };
       }
 
       await interaction.reply({
+        ephemeral: true,
         embeds: [{
           title: 'Your Notification Settings',
+          color: 0x5865F2,
           fields: [
             { name: 'Expedition', value: settings.expedition ? 'Enabled' : 'Disabled', inline: true },
             { name: 'Stamina', value: settings.stamina ? 'Enabled' : 'Disabled', inline: true },
@@ -51,27 +61,24 @@ module.exports = {
             { name: 'Raid Spawn', value: settings.raid_spawn ? 'Enabled' : 'Disabled', inline: true },
             { name: 'Card Drop', value: settings.card_drop ? 'Enabled' : 'Disabled', inline: true },
             { name: 'DM Notifications', value: settings.dmNotifications ? 'Enabled' : 'Disabled', inline: true },
-          ],
-          color: 0x5865F2,
-        }],
-        flags: 1 << 6,
+          ]
+        }]
       });
+
     } else if (subcommand === 'set') {
       const type = interaction.options.getString('type');
       const enabled = interaction.options.getBoolean('enabled');
 
       await updateUserSettings(userId, { [type]: enabled });
 
-      let replyContent;
-      if (type === 'dmNotifications') {
-        replyContent = `You will now ${enabled ? 'receive' : 'stop receiving'} the reminders in your DMs.`;
-      } else {
-        replyContent = `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
-      }
+      const replyContent =
+        type === 'dmNotifications'
+          ? `You will now ${enabled ? 'receive' : 'stop receiving'} reminders in your DMs.`
+          : `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
 
       await interaction.reply({
-        content: replyContent,
-        flags: 1 << 6,
+        ephemeral: true,
+        content: replyContent
       });
     }
   },

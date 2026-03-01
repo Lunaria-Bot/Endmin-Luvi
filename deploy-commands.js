@@ -4,18 +4,33 @@ const fs = require('fs');
 const path = require('path');
 
 const commands = [];
-const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
-for (const file of commandFiles) {
-  const command = require(path.join(commandsPath, file));
-  if (!command.data) {
-    console.error(`❌ Command ${file} is missing \`data\` export`);
-    continue; // skip broken commands
+function loadCommands(dir) {
+  const files = fs.readdirSync(dir);
+
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+
+    if (fs.statSync(fullPath).isDirectory()) {
+      loadCommands(fullPath); // recursive load
+      continue;
+    }
+
+    if (!file.endsWith('.js')) continue;
+
+    const command = require(fullPath);
+
+    if (!command.data) {
+      console.error(`❌ Command ${file} is missing "data" export`);
+      continue;
+    }
+
+    console.log(`Registering command: ${command.data.name}`);
+    commands.push(command.data.toJSON());
   }
-  console.log(`Registering command: ${command.data.name}`);
-  commands.push(command.data.toJSON());
 }
+
+loadCommands(path.join(__dirname, 'commands'));
 
 const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
 

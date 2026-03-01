@@ -9,7 +9,7 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            if (interaction.user.id !== '640517686480338948') {
+            if (interaction.user.id !== '912376040142307419') {
                 return interaction.reply({ content: 'You are not authorized to use this command.', ephemeral: true });
             }
 

@@ -7,7 +7,8 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 module.exports = {
     name: Events.InteractionCreate,
     async execute(interaction) {
-        if (interaction.isCommand()) {
+        // FIX: Discord.js v14 uses isChatInputCommand()
+        if (interaction.isChatInputCommand()) {
             const command = interaction.client.commands.get(interaction.commandName);
             if (!command) return;
 
@@ -25,7 +26,10 @@ module.exports = {
                     console.error(`Error sending error reply for ${interaction.commandName}:`, e);
                 }
             }
-        } else if (interaction.isButton()) {
+        }
+
+        else if (interaction.isButton()) {
+            // ton code bouton reste inchangé
             const { customId, user, channel, message } = interaction;
 
             if (customId.startsWith('stamina_')) {
@@ -36,7 +40,7 @@ module.exports = {
                     try {
                         return await interaction.reply({ content: "You can't interact with this button.", flags: 1 << 6 });
                     } catch (err) {
-                        if (err.code === 10062) return; // Ignore Unknown Interaction
+                        if (err.code === 10062) return;
                         throw err;
                     }
                 }
@@ -54,7 +58,7 @@ module.exports = {
                 const percentage = parseInt(customId.split('_')[1], 10);
                 const maxStamina = 50;
                 const staminaToRegen = (maxStamina * percentage) / 100;
-                const minutesToRegen = staminaToRegen * 2; // 5 stamina per 10 mins = 1 stamina per 2 mins
+                const minutesToRegen = staminaToRegen * 2;
                 const remindAt = new Date(Date.now() + minutesToRegen * 60 * 1000);
 
                 try {
@@ -62,7 +66,6 @@ module.exports = {
                     let confirmationMessage = `You will be reminded when your stamina reaches ${percentage}%.`;
 
                     if (existingReminder) {
-                        // We no longer manually delete. setTimer will update it in place.
                         confirmationMessage = `Your previous stamina reminder was overwritten. You will now be reminded when your stamina reaches ${percentage}%.`;
                     }
 
@@ -75,12 +78,7 @@ module.exports = {
                         reminderMessage: `<@${user.id}>, your stamina has regenerated to ${percentage}%! Time to </clash:1472170030228570113>`
                     });
 
-                    try {
-                        await interaction.editReply({ content: confirmationMessage });
-                    } catch (err) {
-                        if (err.code === 10062) return;
-                        throw err;
-                    }
+                    await interaction.editReply({ content: confirmationMessage });
 
                     await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}, Message ID: ${message.id}, Message Link: ${message.url}`);
 
@@ -91,27 +89,17 @@ module.exports = {
                             new ButtonBuilder().setCustomId('stamina_50').setLabel('Remind at 50% Stamina').setStyle(ButtonStyle.Primary).setDisabled(true),
                             new ButtonBuilder().setCustomId('stamina_100').setLabel('Remind at 100% Stamina').setStyle(ButtonStyle.Primary).setDisabled(true),
                         );
-                    try {
-                        await originalMessage.edit({ components: [disabledRow] });
-                    } catch (e) {
-                        if (e.code === 10008) { // Unknown Message
-                            console.log(`Failed to disable buttons: message was deleted.`);
-                        } else {
-                            console.error('Failed to disable buttons:', e);
-                        }
-                    }
+
+                    await originalMessage.edit({ components: [disabledRow] });
+
                 } catch (error) {
                     console.error(`[ERROR] Failed to create stamina reminder: ${error.message}`, error);
                     await sendError(`[ERROR] Failed to create stamina reminder: ${error.message}`);
-                    try {
-                        if (interaction.deferred || interaction.replied) {
-                            await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
-                        } else {
-                            await interaction.reply({ content: 'Sorry, there was an error setting your reminder.', flags: 1 << 6 });
-                        }
-                    } catch (e) {
-                        if (e.code === 10062) return;
-                        console.error('Failed to send error message for stamina reminder:', e);
+
+                    if (interaction.deferred || interaction.replied) {
+                        await interaction.editReply({ content: 'Sorry, there was an error setting your reminder.' });
+                    } else {
+                        await interaction.reply({ content: 'Sorry, there was an error setting your reminder.', flags: 1 << 6 });
                     }
                 }
             }

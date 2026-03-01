@@ -59,20 +59,35 @@ const client = new Client({
   },
 });
 
-// --- Load Commands ---
+// --- Load Commands (Recursive Loader) ---
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-for (const file of commandFiles) {
-  const command = require(path.join(commandsPath, file));
-  if (command.data && command.execute) {
-    client.commands.set(command.data.name, command);
-    console.log(`Loaded command: ${command.data.name}`);
-  } else {
-    console.warn(`Skipped loading ${file}: missing data or execute`);
+function loadCommandsRecursively(dir) {
+  const files = fs.readdirSync(dir);
+
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+
+    if (fs.statSync(fullPath).isDirectory()) {
+      loadCommandsRecursively(fullPath);
+      continue;
+    }
+
+    if (!file.endsWith('.js')) continue;
+
+    const command = require(fullPath);
+
+    if (command.data && command.execute) {
+      client.commands.set(command.data.name, command);
+      console.log(`Loaded command: ${command.data.name}`);
+    } else {
+      console.warn(`Skipped loading ${file}: missing data or execute`);
+    }
   }
 }
+
+loadCommandsRecursively(commandsPath);
 
 // --- Load Events ---
 const eventsPath = path.join(__dirname, 'events');

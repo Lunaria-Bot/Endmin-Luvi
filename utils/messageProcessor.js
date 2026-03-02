@@ -218,7 +218,7 @@ async function processMessage(message, oldMessage = null) {
             channelId: message.channel.id,
             remindAt: new Date(Date.now() + 1800000),
             type: 'raid_spawn',
-            reminderMessage: `<@${userId}>, your raid spawn cooldown is up!`,
+            reminderMessage: `<@${userId}>, your </raid spawn:1472170030723764364> cooldown is up!`,
           });
         } catch (error) {
           if (error.code !== 11000) {
@@ -244,7 +244,7 @@ async function processMessage(message, oldMessage = null) {
             channelId: message.channel.id,
             remindAt: new Date(Date.now() + 3600000),
             type: 'card_drop',
-            reminderMessage: `<@${userId}>, your card drop cooldown is up!`,
+            reminderMessage: `<@${userId}>, your </drop:1472170029905874977> cooldown is up ! Wish you luck`,
           });
         }
       } catch (error) {

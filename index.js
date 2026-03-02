@@ -78,7 +78,7 @@ function loadCommandsRecursively(dir) {
 
     const command = require(fullPath);
 
-    // Support for modules exporting multiple commands (like worldAttack)
+    // Support modules exporting multiple commands (like worldAttack)
     if (Array.isArray(command.data)) {
       for (const cmd of command.data) {
         client.commands.set(cmd.name, {
@@ -142,6 +142,36 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
   if (newMessage.author.id !== '1269481871021047891') return;
   await processMessage(newMessage, oldMessage);
+});
+
+// --- Sync Command (Admin Only) ---
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== "sync") return;
+
+  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+    return interaction.reply({ content: "⛔ You do not have permission to use this command.", ephemeral: true });
+  }
+
+  const scope = interaction.options.getString("scope");
+
+  try {
+    if (scope === "global") {
+      await client.application.commands.set([...client.commands.values()].map(c => c.data));
+      return interaction.reply({ content: "🌍 Global commands synced.", ephemeral: true });
+    }
+
+    if (scope === "guild") {
+      await interaction.guild.commands.set([...client.commands.values()].map(c => c.data));
+      return interaction.reply({ content: "🏠 Guild commands synced.", ephemeral: true });
+    }
+
+    return interaction.reply({ content: "❌ Invalid scope.", ephemeral: true });
+
+  } catch (err) {
+    console.error("Sync error:", err);
+    return interaction.reply({ content: "❌ Sync failed.", ephemeral: true });
+  }
 });
 
 // --- Guild Join Setup ---

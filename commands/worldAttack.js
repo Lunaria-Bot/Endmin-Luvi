@@ -1,0 +1,251 @@
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits
+} = require("discord.js");
+
+const cron = require("node-cron");
+const WorldAttackOptOut = require("../models/WorldAttackOptOut");
+
+const GUILD_ID = "1293611593845706793";
+const LOG_CHANNEL_ID = "1421465080238964796";
+const ROLE_ID = "1450472679021740043";
+
+const REMINDER_TEXT = "Hey Guild Member of Lilac, do not forget to do your world attack!";
+
+module.exports = {
+  name: "worldattack-system",
+
+  async register(client) {
+    // CRON : tous les jours à 01:00 Europe/Paris
+    cron.schedule("0 1 * * 1-5", async () => {
+      await sendDailyReminder(client);
+    }, {
+      timezone: "Europe/Paris"
+    });
+
+    console.log("[WorldAttack] Cron task started.");
+  },
+
+  commands: [
+    // ---------------------------------------------------------
+    // /toggle-worldattack
+    // ---------------------------------------------------------
+    new SlashCommandBuilder()
+      .setName("toggle-worldattack")
+      .setDescription("Enable or disable your daily World Attack reminder."),
+
+    // ---------------------------------------------------------
+    // /test-worldattack
+    // ---------------------------------------------------------
+    new SlashCommandBuilder()
+      .setName("test-worldattack")
+      .setDescription("Send a test World Attack reminder to everyone with the role.")
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    // ---------------------------------------------------------
+    // /world-attack target:<text>
+    // ---------------------------------------------------------
+    new SlashCommandBuilder()
+      .setName("world-attack")
+      .setDescription("Send a world attack target message to all role members.")
+      .addStringOption(opt =>
+        opt.setName("target")
+          .setDescription("Target or element to focus on")
+          .setRequired(true)
+      )
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    // ---------------------------------------------------------
+    // /world-attack-users users:<IDs>
+    // ---------------------------------------------------------
+    new SlashCommandBuilder()
+      .setName("world-attack-users")
+      .setDescription("Send a world attack reminder to a list of user IDs.")
+      .addStringOption(opt =>
+        opt.setName("users")
+          .setDescription("Comma-separated list of user IDs")
+          .setRequired(true)
+      )
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  ],
+
+  // ---------------------------------------------------------
+  // Command handler
+  // ---------------------------------------------------------
+  async execute(interaction) {
+    const name = interaction.commandName;
+
+    if (name === "toggle-worldattack") {
+      return toggleWorldAttack(interaction);
+    }
+
+    if (name === "test-worldattack") {
+      return testWorldAttack(interaction);
+    }
+
+    if (name === "world-attack") {
+      return worldAttack(interaction);
+    }
+
+    if (name === "world-attack-users") {
+      return worldAttackUsers(interaction);
+    }
+  }
+};
+
+// ---------------------------------------------------------
+// /toggle-worldattack
+// ---------------------------------------------------------
+async function toggleWorldAttack(interaction) {
+  const userId = interaction.user.id;
+  const existing = await WorldAttackOptOut.findOne({ userId });
+
+  if (existing) {
+    await WorldAttackOptOut.deleteOne({ userId });
+    return interaction.reply({ content: "✅ Your World Attack reminder is now enabled.", ephemeral: true });
+  }
+
+  await WorldAttackOptOut.create({ userId });
+  return interaction.reply({ content: "❌ Your World Attack reminder is now disabled.", ephemeral: true });
+}
+
+// ---------------------------------------------------------
+// /test-worldattack
+// ---------------------------------------------------------
+async function testWorldAttack(interaction) {
+  const guild = interaction.guild;
+  const role = guild.roles.cache.get(ROLE_ID);
+
+  if (!role) {
+    return interaction.reply({ content: `❌ Role ${ROLE_ID} not found.`, ephemeral: true });
+  }
+
+  const disabled = await WorldAttackOptOut.find().lean();
+  const disabledSet = new Set(disabled.map(d => d.userId));
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const member of role.members.values()) {
+    if (member.bot) continue;
+    if (disabledSet.has(member.id)) continue;
+
+    try {
+      await member.send(REMINDER_TEXT);
+      sent++;
+    } catch {
+      failed++;
+    }
+  }
+
+  return interaction.reply({
+    content: `📨 Test reminder sent.\n✅ Delivered: ${sent}\n❌ Failed: ${failed}`,
+    ephemeral: true
+  });
+}
+
+// ---------------------------------------------------------
+// /world-attack target:<text>
+// ---------------------------------------------------------
+async function worldAttack(interaction) {
+  const target = interaction.options.getString("target");
+  const guild = interaction.guild;
+  const role = guild.roles.cache.get(ROLE_ID);
+  const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+
+  if (!role) {
+    return interaction.reply({ content: `❌ Role ${ROLE_ID} not found.`, ephemeral: true });
+  }
+
+  const msg = `Hello, do please concentrate all your world attack to **${target}** Boss`;
+
+  let sent = 0;
+  const failed = [];
+
+  for (const member of role.members.values()) {
+    if (member.bot) continue;
+
+    try {
+      await member.send(msg);
+      sent++;
+    } catch {
+      failed.push(`${member.displayName} (${member.id})`);
+    }
+  }
+
+  if (logChannel) {
+    await logChannel.send(`[WorldAttack] Target broadcast: **${target}**\n✅ Delivered: ${sent}\n❌ Failed: ${failed.length}`);
+    if (failed.length) {
+      await logChannel.send(`❌ Failed deliveries:\n${failed.join("\n")}`);
+    }
+  }
+
+  return interaction.reply({
+    content: `📨 Target **${target}** broadcast.\n✅ Delivered: ${sent}\n❌ Failed: ${failed.length}`,
+    ephemeral: true
+  });
+}
+
+// ---------------------------------------------------------
+// /world-attack-users users:<IDs>
+// ---------------------------------------------------------
+async function worldAttackUsers(interaction) {
+  const raw = interaction.options.getString("users");
+  const ids = raw.split(",").map(x => x.trim());
+
+  let sent = 0;
+  const failed = [];
+
+  for (const id of ids) {
+    try {
+      const user = await interaction.client.users.fetch(id);
+      await user.send(REMINDER_TEXT);
+      sent++;
+    } catch {
+      failed.push(id);
+    }
+  }
+
+  return interaction.reply({
+    content: `📨 Reminder sent.\n✅ Delivered: ${sent}\n❌ Failed: ${failed.length}\n${failed.join("\n")}`,
+    ephemeral: true
+  });
+}
+
+// ---------------------------------------------------------
+// DAILY REMINDER
+// ---------------------------------------------------------
+async function sendDailyReminder(client) {
+  const guild = client.guilds.cache.get(GUILD_ID);
+  if (!guild) return;
+
+  const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+  const role = guild.roles.cache.get(ROLE_ID);
+
+  if (!role) {
+    if (logChannel) logChannel.send(`[WorldAttack] Role ${ROLE_ID} not found.`);
+    return;
+  }
+
+  const disabled = await WorldAttackOptOut.find().lean();
+  const disabledSet = new Set(disabled.map(d => d.userId));
+
+  if (logChannel) logChannel.send("[WorldAttack] Starting reminder dispatch...");
+
+  for (const member of role.members.values()) {
+    if (member.bot) continue;
+    if (disabledSet.has(member.id)) {
+      if (logChannel) logChannel.send(`[WorldAttack] Skipped ${member.displayName} (opted out).`);
+      continue;
+    }
+
+    try {
+      await member.send(REMINDER_TEXT);
+      if (logChannel) logChannel.send(`[WorldAttack] DM sent to ${member.displayName}.`);
+    } catch (e) {
+      if (logChannel) logChannel.send(`[WorldAttack] Failed to DM ${member.displayName}: ${e}`);
+    }
+  }
+
+  if (logChannel) logChannel.send("[WorldAttack] Reminder dispatch completed.");
+}

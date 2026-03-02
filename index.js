@@ -242,6 +242,16 @@ To set up the bot, please use these commands:
         console.log("[WorldAttack] System initialized.");
       }
 
+      // --- Auto Sync Commands on Startup ---
+      try {
+        await client.application.commands.set(
+          [...client.commands.values()].map(c => c.data)
+        );
+        console.log("[SYNC] Commands synced globally on startup.");
+      } catch (err) {
+        console.error("[SYNC ERROR]", err);
+      }
+
       const updateStatus = () => {
         const serverCount = readyClient.guilds.cache.size;
         readyClient.user.setActivity(`Luvi bot in ${serverCount} servers`, { type: ActivityType.Watching });

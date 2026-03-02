@@ -174,44 +174,9 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-// --- Guild Join Setup ---
+// --- Guild Join Setup (NO MESSAGE SENT) ---
 client.on(Events.GuildCreate, async (guild) => {
-  try {
-    const defaultChannel = guild.channels.cache
-      .filter(ch =>
-        ch.type === 0 &&
-        ch.permissionsFor(guild.members.me).has(PermissionsBitField.Flags.SendMessages)
-      )
-      .first();
-
-    if (!defaultChannel) {
-      console.log(`No accessible text channel found in guild ${guild.name}`);
-      return;
-    }
-
-    const guideMessage = `
-**Hello! Thanks for adding Luvi Helper Bot!**
-
-To set up the bot, please use these commands:
-
-1️⃣ Set Boss Ping Roles:
-- \`/set-tier-role tier:1 role:@Role\`
-- \`/set-tier-role tier:2 role:@Role\`
-- \`/set-tier-role tier:3 role:@Role\`
-
-2️⃣ View settings:
-- \`/view-settings\`
-
-3️⃣ User Notification Settings:
-- \`/notifications set\`
-- \`/notifications view\`
-`;
-
-    await defaultChannel.send(guideMessage);
-    console.log(`Sent setup guide message in guild ${guild.name}`);
-  } catch (error) {
-    console.error(`Failed to send setup message in guild ${guild.name}:`, error);
-  }
+  console.log(`[GUILD JOIN] Added to guild: ${guild.name} (${guild.id})`);
 });
 
 // --- MongoDB + Bot Login ---

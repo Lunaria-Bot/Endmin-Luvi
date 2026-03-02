@@ -10,7 +10,7 @@ const ROLE_TIER_2 = "1439616926170218669";
 const ROLE_TIER_3 = "1439616971908972746";
 
 // Channel where autorole message is sent
-const TARGET_CHANNEL_ID = "1460226131830509662";
+const TARGET_CHANNEL_ID = "1477686731993120969";
 
 module.exports = {
   data: new SlashCommandBuilder()

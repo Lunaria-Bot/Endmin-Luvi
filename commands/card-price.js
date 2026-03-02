@@ -13,33 +13,33 @@ module.exports = {
       .setDescription("Updated reference values for Luvi card trading.")
       .addFields(
         {
-          name: "## Non Iconic",
+          name: "**Non Iconic**",
           value:
-            "<:LU_Legendary:1439751446634565755> **8** <:LU_Cores:1439750755518124042>\n" +
-            "<:LU_Exotic:1439751469518684234> **3** <:LU_Cores:1439750755518124042>\n" +
-            "<:LU_Rare:1439751495116521642> **1**",
+            "<:LU_Legendary:1478080802557394974> **8** <:LU_Cores:1478081091511517286>\n" +
+            "<:LU_Exotic:1478080867954983003> **3** <:LU_Cores:1478081091511517286>\n" +
+            "<:LU_Rare:1478080922434928794> **1**",
           inline: false
         },
         {
-          name: "## Iconics",
+          name: "**Iconics**",
           value:
-            "<:LU_Legendary:1439751446634565755> **16~18** <:LU_Cores:1439750755518124042>\n" +
-            "<:LU_Exotic:1439751469518684234> **8**\n" +
-            "<:LU_Rare:1439751495116521642> **2~3** <:LU_Cores:1439750755518124042>",
+            "<:LU_Legendary:1478080802557394974> **16~18** <:LU_Cores:1478081091511517286>n" +
+            "<:LU_Exotic:1478080867954983003> **8**\n" +
+            "<:LU_Rare:1478080922434928794> **2~3** <:LU_Cores:1478081091511517286>",
           inline: false
         },
         {
           name: "🌟 Grade Bonus",
           value:
-            "<:LU_BGrade:1439750983474348062> `+2`   " +
-            "<:LU_AGrade:1439751071680434186> `+6`   " +
-            "<:LU_SGrade:1439750954919657624> `+12`",
+            "<:LU_BGrade:1478080964423848098> `+2`   " +
+            "<:LU_AGrade:1478081005951910080> `+6`   " +
+            "<:LU_SGrade:1478081052303163534> `+12`",
           inline: false
         },
         {
           name: "♻️ Conversion",
           value:
-            "`1.3~1.5k Essence` ↔ **1** <:LU_Cores:1439750755518124042> ↔ `150k Gold`",
+            "`1.3~1.5k Essence` ↔ **1** <:LU_Cores:1478081091511517286> ↔ `150k Gold`",
           inline: false
         }
       )

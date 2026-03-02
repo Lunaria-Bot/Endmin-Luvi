@@ -78,6 +78,18 @@ function loadCommandsRecursively(dir) {
 
     const command = require(fullPath);
 
+    // Support for modules exporting multiple commands (like worldAttack)
+    if (Array.isArray(command.data)) {
+      for (const cmd of command.data) {
+        client.commands.set(cmd.name, {
+          data: cmd,
+          execute: command.execute
+        });
+        console.log(`Loaded command: ${cmd.name}`);
+      }
+      continue;
+    }
+
     if (command.data && command.execute) {
       client.commands.set(command.data.name, command);
       console.log(`Loaded command: ${command.data.name}`);
@@ -184,12 +196,21 @@ To set up the bot, please use these commands:
     const Reminder = require('./models/Reminder');
     await Reminder.syncIndexes().catch(err => console.error("Failed to sync Reminder indexes:", err));
 
+    // Load World Attack system
+    const worldAttack = require("./commands/worldAttack");
+
     client.once(Events.ClientReady, async readyClient => {
       console.log(`Bot logged in as ${readyClient.user.tag}`);
 
       await initializeSettings();
       await initializeUserSettings();
       initTimerManager(readyClient);
+
+      // Initialize World Attack daily reminder
+      if (worldAttack.init) {
+        await worldAttack.init(readyClient);
+        console.log("[WorldAttack] System initialized.");
+      }
 
       const updateStatus = () => {
         const serverCount = readyClient.guilds.cache.size;

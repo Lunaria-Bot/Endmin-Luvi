@@ -6,9 +6,9 @@ const {
 const WorldAttackOptOut = require("../models/WorldAttackOptOut");
 const { setTimer } = require("../utils/timerManager");
 
-const GUILD_ID = "1462077488149561468";
-const LOG_CHANNEL_ID = "1477686731993120969";
-const ROLE_ID = "1477811655881658388";
+const GUILD_ID = "1293611593845706793";
+const LOG_CHANNEL_ID = "1478122486385344542";
+const ROLE_ID = "1450472679021740043";
 
 const REMINDER_TEXT = "Hey Guild Member of Lilac, do not forget to do your world attack!";
 

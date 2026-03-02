@@ -1,4 +1,8 @@
-const MESSAGE_ID = "1460243538133520510";
+const fs = require("fs");
+const path = require("path");
+
+const DATA_FILE = path.join(__dirname, "../data/autorole.json");
+
 const ROLE_TIER_1 = "1439616771622572225";
 const ROLE_TIER_2 = "1439616926170218669";
 const ROLE_TIER_3 = "1439616971908972746";
@@ -14,8 +18,12 @@ const BOT_ID = "1476284621133058109";
 module.exports = {
   name: "raw",
   async execute(packet, client) {
-    if (!["MESSAGE_REACTION_ADD"].includes(packet.t)) return;
-    if (packet.d.message_id !== MESSAGE_ID) return;
+    if (packet.t !== "MESSAGE_REACTION_ADD") return;
+
+    const { messageId } = JSON.parse(fs.readFileSync(DATA_FILE));
+
+    if (!messageId) return;
+    if (packet.d.message_id !== messageId) return;
 
     const guild = client.guilds.cache.get(packet.d.guild_id);
     const channel = guild.channels.cache.get(packet.d.channel_id);
@@ -25,8 +33,7 @@ module.exports = {
     if (member.id === BOT_ID) return;
 
     const emoji = packet.d.emoji.name;
-
-    const msg = await channel.messages.fetch(MESSAGE_ID);
+    const msg = await channel.messages.fetch(messageId);
 
     const removeReaction = async () => {
       try {
@@ -37,26 +44,18 @@ module.exports = {
     // Tier 1
     if (emoji === "1️⃣") {
       const role = guild.roles.cache.get(ROLE_TIER_1);
-
-      if (member.roles.cache.has(role.id)) {
-        await member.roles.remove(role);
-      } else {
-        await member.roles.add(role);
-      }
-
+      member.roles.cache.has(role.id)
+        ? await member.roles.remove(role)
+        : await member.roles.add(role);
       return removeReaction();
     }
 
     // Tier 2
     if (emoji === "2️⃣") {
       const role = guild.roles.cache.get(ROLE_TIER_2);
-
-      if (member.roles.cache.has(role.id)) {
-        await member.roles.remove(role);
-      } else {
-        await member.roles.add(role);
-      }
-
+      member.roles.cache.has(role.id)
+        ? await member.roles.remove(role)
+        : await member.roles.add(role);
       return removeReaction();
     }
 

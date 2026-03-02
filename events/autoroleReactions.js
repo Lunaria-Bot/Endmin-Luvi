@@ -20,8 +20,8 @@ module.exports = {
   async execute(packet, client) {
     if (packet.t !== "MESSAGE_REACTION_ADD") return;
 
+    // Load saved message ID
     const { messageId } = JSON.parse(fs.readFileSync(DATA_FILE));
-
     if (!messageId) return;
     if (packet.d.message_id !== messageId) return;
 
@@ -38,37 +38,52 @@ module.exports = {
     const removeReaction = async () => {
       try {
         await msg.reactions.resolve(emoji).users.remove(member.id);
-      } catch {}
+      } catch (err) {
+        console.log("Failed to remove reaction:", err);
+      }
     };
 
     // Tier 1
     if (emoji === "1️⃣") {
       const role = guild.roles.cache.get(ROLE_TIER_1);
-      member.roles.cache.has(role.id)
-        ? await member.roles.remove(role)
-        : await member.roles.add(role);
+      if (!role) return;
+
+      if (member.roles.cache.has(role.id)) {
+        await member.roles.remove(role);
+      } else {
+        await member.roles.add(role);
+      }
+
       return removeReaction();
     }
 
     // Tier 2
     if (emoji === "2️⃣") {
       const role = guild.roles.cache.get(ROLE_TIER_2);
-      member.roles.cache.has(role.id)
-        ? await member.roles.remove(role)
-        : await member.roles.add(role);
+      if (!role) return;
+
+      if (member.roles.cache.has(role.id)) {
+        await member.roles.remove(role);
+      } else {
+        await member.roles.add(role);
+      }
+
       return removeReaction();
     }
 
     // Tier 3 (requires roles)
     if (emoji === "3️⃣") {
       const role = guild.roles.cache.get(ROLE_TIER_3);
+      if (!role) return;
 
       if (member.roles.cache.has(role.id)) {
         await member.roles.remove(role);
         return removeReaction();
       }
 
-      const hasRequired = member.roles.cache.some(r => REQUIRED_ROLES_FOR_T3.includes(r.id));
+      const hasRequired = member.roles.cache.some(r =>
+        REQUIRED_ROLES_FOR_T3.includes(r.id)
+      );
 
       if (!hasRequired) {
         await removeReaction();

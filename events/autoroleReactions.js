@@ -1,70 +1,53 @@
-const fs = require("fs");
-const path = require("path");
-
-const DATA_FILE = path.join(__dirname, "../data/autorole.json");
-
-const ROLE_TIER_1 = "1439616771622572225";
-const ROLE_TIER_2 = "1439616926170218669";
-const ROLE_TIER_3 = "1439616971908972746";
-
 const REQUIRED_ROLES_FOR_T3 = [
   "1295761591895064577",
   "1450472679021740043",
   "1297161626910462016"
 ];
 
-const BOT_ID = "1476284621133058109";
+const ROLE_TIER_1 = "1439616771622572225";
+const ROLE_TIER_2 = "1439616926170218669";
+const ROLE_TIER_3 = "1439616971908972746";
 
 module.exports = {
-  name: "raw",
-  async execute(packet, client) {
-    if (packet.t !== "MESSAGE_REACTION_ADD") return;
+  name: "interactionCreate",
+  async execute(interaction) {
+    if (!interaction.isButton()) return;
 
-    const { messageId } = JSON.parse(fs.readFileSync(DATA_FILE));
-    if (!messageId) return;
-    if (packet.d.message_id !== messageId) return;
-
-    const guild = client.guilds.cache.get(packet.d.guild_id);
-    const channel = guild.channels.cache.get(packet.d.channel_id);
-    const member = guild.members.cache.get(packet.d.user_id);
-
-    if (!guild || !channel || !member) return;
-    if (member.id === BOT_ID) return;
-
-    const emoji = packet.d.emoji.name;
-    const msg = await channel.messages.fetch(messageId);
-
-    const removeReaction = async () => {
-      try {
-        await msg.reactions.resolve(emoji).users.remove(member.id);
-      } catch {}
-    };
+    const member = interaction.member;
 
     // Tier 1
-    if (emoji === "1️⃣") {
-      const role = guild.roles.cache.get(ROLE_TIER_1);
-      member.roles.cache.has(role.id)
-        ? await member.roles.remove(role)
-        : await member.roles.add(role);
-      return removeReaction();
-    }
-
-    // Tier 2
-    if (emoji === "2️⃣") {
-      const role = guild.roles.cache.get(ROLE_TIER_2);
-      member.roles.cache.has(role.id)
-        ? await member.roles.remove(role)
-        : await member.roles.add(role);
-      return removeReaction();
-    }
-
-    // Tier 3
-    if (emoji === "3️⃣") {
-      const role = guild.roles.cache.get(ROLE_TIER_3);
+    if (interaction.customId === "tier1") {
+      const role = interaction.guild.roles.cache.get(ROLE_TIER_1);
 
       if (member.roles.cache.has(role.id)) {
         await member.roles.remove(role);
-        return removeReaction();
+        return interaction.reply({ content: "Removed Tier 1 role.", ephemeral: true });
+      }
+
+      await member.roles.add(role);
+      return interaction.reply({ content: "Added Tier 1 role.", ephemeral: true });
+    }
+
+    // Tier 2
+    if (interaction.customId === "tier2") {
+      const role = interaction.guild.roles.cache.get(ROLE_TIER_2);
+
+      if (member.roles.cache.has(role.id)) {
+        await member.roles.remove(role);
+        return interaction.reply({ content: "Removed Tier 2 role.", ephemeral: true });
+      }
+
+      await member.roles.add(role);
+      return interaction.reply({ content: "Added Tier 2 role.", ephemeral: true });
+    }
+
+    // Tier 3 (requires roles)
+    if (interaction.customId === "tier3") {
+      const role = interaction.guild.roles.cache.get(ROLE_TIER_3);
+
+      if (member.roles.cache.has(role.id)) {
+        await member.roles.remove(role);
+        return interaction.reply({ content: "Removed Tier 3 role.", ephemeral: true });
       }
 
       const hasRequired = member.roles.cache.some(r =>
@@ -72,15 +55,14 @@ module.exports = {
       );
 
       if (!hasRequired) {
-        await removeReaction();
-        try {
-          await member.send("Keep grinding nub or join our clan to be strong");
-        } catch {}
-        return;
+        return interaction.reply({
+          content: "Keep grinding nub or join our clan to be strong.",
+          ephemeral: true
+        });
       }
 
       await member.roles.add(role);
-      return removeReaction();
+      return interaction.reply({ content: "Added Tier 3 role.", ephemeral: true });
     }
   }
 };

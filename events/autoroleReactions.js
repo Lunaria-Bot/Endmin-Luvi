@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField } = require("discord.js");
 
 const DATA_FILE = path.join(__dirname, "../data/autorole.json");
 
@@ -7,94 +8,57 @@ const ROLE_TIER_1 = "1439616771622572225";
 const ROLE_TIER_2 = "1439616926170218669";
 const ROLE_TIER_3 = "1439616971908972746";
 
-const REQUIRED_ROLES_FOR_T3 = [
-  "1295761591895064577",
-  "1450472679021740043",
-  "1297161626910462016"
-];
-
-const BOT_ID = "1476284621133058109";
+const TARGET_CHANNEL_ID = "1460226131830509662";
 
 module.exports = {
-  name: "raw",
-  async execute(packet, client) {
-    if (packet.t !== "MESSAGE_REACTION_ADD") return;
+  data: new SlashCommandBuilder()
+    .setName("sendautorole")
+    .setDescription("Send the autorole message in the configured channel.")
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator),
 
-    // Load saved message ID
-    const { messageId } = JSON.parse(fs.readFileSync(DATA_FILE));
-    if (!messageId) return;
-    if (packet.d.message_id !== messageId) return;
+  async execute(interaction) {
+    const guild = interaction.guild;
+    const channel = guild.channels.cache.get(TARGET_CHANNEL_ID);
 
-    const guild = client.guilds.cache.get(packet.d.guild_id);
-    const channel = guild.channels.cache.get(packet.d.channel_id);
-    const member = guild.members.cache.get(packet.d.user_id);
-
-    if (!guild || !channel || !member) return;
-    if (member.id === BOT_ID) return;
-
-    const emoji = packet.d.emoji.name;
-    const msg = await channel.messages.fetch(messageId);
-
-    const removeReaction = async () => {
-      try {
-        await msg.reactions.resolve(emoji).users.remove(member.id);
-      } catch (err) {
-        console.log("Failed to remove reaction:", err);
-      }
-    };
-
-    // Tier 1
-    if (emoji === "1️⃣") {
-      const role = guild.roles.cache.get(ROLE_TIER_1);
-      if (!role) return;
-
-      if (member.roles.cache.has(role.id)) {
-        await member.roles.remove(role);
-      } else {
-        await member.roles.add(role);
-      }
-
-      return removeReaction();
+    if (!channel) {
+      return interaction.reply({ content: "Channel not found.", ephemeral: true });
     }
 
-    // Tier 2
-    if (emoji === "2️⃣") {
-      const role = guild.roles.cache.get(ROLE_TIER_2);
-      if (!role) return;
-
-      if (member.roles.cache.has(role.id)) {
-        await member.roles.remove(role);
-      } else {
-        await member.roles.add(role);
-      }
-
-      return removeReaction();
-    }
-
-    // Tier 3 (requires roles)
-    if (emoji === "3️⃣") {
-      const role = guild.roles.cache.get(ROLE_TIER_3);
-      if (!role) return;
-
-      if (member.roles.cache.has(role.id)) {
-        await member.roles.remove(role);
-        return removeReaction();
-      }
-
-      const hasRequired = member.roles.cache.some(r =>
-        REQUIRED_ROLES_FOR_T3.includes(r.id)
+    const embed = new EmbedBuilder()
+      .setColor("#f1c40f")
+      .setTitle("React to get pinged for specific tier boss spawns! 🤓")
+      .setDescription(
+        `**1️⃣ Ping Tier 1** — <@&${ROLE_TIER_1}>\n` +
+        `**2️⃣ Ping Tier 2** — <@&${ROLE_TIER_2}>\n` +
+        `**3️⃣ Ping Tier 3** — <@&${ROLE_TIER_3}>\n\n` +
+        "Choose your tier notifications!"
       );
 
-      if (!hasRequired) {
-        await removeReaction();
-        try {
-          await member.send("Keep grinding nub or join our clan to be strong");
-        } catch {}
-        return;
-      }
+    const msg = await channel.send({ embeds: [embed] });
 
-      await member.roles.add(role);
-      return removeReaction();
+    await msg.react("1️⃣");
+    await msg.react("2️⃣");
+    await msg.react("3️⃣");
+
+    // Ensure directory exists
+    const dir = path.dirname(DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
+
+    // Save message ID
+    console.log("Saving autorole message ID:", msg.id);
+
+    try {
+      fs.writeFileSync(DATA_FILE, JSON.stringify({ messageId: msg.id }, null, 2));
+      console.log("Saved to:", DATA_FILE);
+    } catch (err) {
+      console.error("Failed to write autorole.json:", err);
+    }
+
+    return interaction.reply({
+      content: `Autorole message sent in <#${TARGET_CHANNEL_ID}>.\nNew message ID saved: **${msg.id}**`,
+      ephemeral: true
+    });
   }
 };

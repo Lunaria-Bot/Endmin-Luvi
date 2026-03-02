@@ -3,8 +3,8 @@ const {
   PermissionFlagsBits
 } = require("discord.js");
 
-const cron = require("node-cron");
 const WorldAttackOptOut = require("../models/WorldAttackOptOut");
+const { setTimer } = require("../utils/timerManager");
 
 const GUILD_ID = "1462077488149561468";
 const LOG_CHANNEL_ID = "1477686731993120969";
@@ -12,39 +12,20 @@ const ROLE_ID = "1477811655881658388";
 
 const REMINDER_TEXT = "Hey Guild Member of Lilac, do not forget to do your world attack!";
 
+// ---------------------------------------------------------
+// REGISTER COMMANDS
+// ---------------------------------------------------------
 module.exports = {
-  name: "worldattack-system",
-
-  async register(client) {
-    // CRON : tous les jours à 01:00 Europe/Paris
-    cron.schedule("0 1 * * 1-5", async () => {
-      await sendDailyReminder(client);
-    }, {
-      timezone: "Europe/Paris"
-    });
-
-    console.log("[WorldAttack] Cron task started.");
-  },
-
-  commands: [
-    // ---------------------------------------------------------
-    // /toggle-worldattack
-    // ---------------------------------------------------------
+  data: [
     new SlashCommandBuilder()
       .setName("toggle-worldattack")
       .setDescription("Enable or disable your daily World Attack reminder."),
 
-    // ---------------------------------------------------------
-    // /test-worldattack
-    // ---------------------------------------------------------
     new SlashCommandBuilder()
       .setName("test-worldattack")
       .setDescription("Send a test World Attack reminder to everyone with the role.")
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    // ---------------------------------------------------------
-    // /world-attack target:<text>
-    // ---------------------------------------------------------
     new SlashCommandBuilder()
       .setName("world-attack")
       .setDescription("Send a world attack target message to all role members.")
@@ -55,9 +36,6 @@ module.exports = {
       )
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
-    // ---------------------------------------------------------
-    // /world-attack-users users:<IDs>
-    // ---------------------------------------------------------
     new SlashCommandBuilder()
       .setName("world-attack-users")
       .setDescription("Send a world attack reminder to a list of user IDs.")
@@ -69,27 +47,17 @@ module.exports = {
       .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   ],
 
-  // ---------------------------------------------------------
-  // Command handler
-  // ---------------------------------------------------------
   async execute(interaction) {
     const name = interaction.commandName;
 
-    if (name === "toggle-worldattack") {
-      return toggleWorldAttack(interaction);
-    }
+    if (name === "toggle-worldattack") return toggleWorldAttack(interaction);
+    if (name === "test-worldattack") return testWorldAttack(interaction);
+    if (name === "world-attack") return worldAttack(interaction);
+    if (name === "world-attack-users") return worldAttackUsers(interaction);
+  },
 
-    if (name === "test-worldattack") {
-      return testWorldAttack(interaction);
-    }
-
-    if (name === "world-attack") {
-      return worldAttack(interaction);
-    }
-
-    if (name === "world-attack-users") {
-      return worldAttackUsers(interaction);
-    }
+  async init(client) {
+    scheduleDailyReminder(client);
   }
 };
 
@@ -213,8 +181,26 @@ async function worldAttackUsers(interaction) {
 }
 
 // ---------------------------------------------------------
-// DAILY REMINDER
+// DAILY REMINDER (via setTimer)
 // ---------------------------------------------------------
+async function scheduleDailyReminder(client) {
+  const now = new Date();
+  const next = new Date();
+
+  next.setHours(1, 0, 0, 0); // 01:00
+
+  if (now > next) next.setDate(next.getDate() + 1);
+
+  await setTimer(client, {
+    userId: "worldattack-system",
+    guildId: GUILD_ID,
+    channelId: LOG_CHANNEL_ID,
+    remindAt: next,
+    type: "worldattack",
+    reminderMessage: "[WorldAttack] Running daily reminder dispatch..."
+  });
+}
+
 async function sendDailyReminder(client) {
   const guild = client.guilds.cache.get(GUILD_ID);
   if (!guild) return;
@@ -248,4 +234,7 @@ async function sendDailyReminder(client) {
   }
 
   if (logChannel) logChannel.send("[WorldAttack] Reminder dispatch completed.");
+
+  // Replanifier pour demain
+  scheduleDailyReminder(client);
 }

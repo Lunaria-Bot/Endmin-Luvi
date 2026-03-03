@@ -56,7 +56,7 @@ module.exports = {
 
       if (!hasRequired) {
         return interaction.reply({
-          content: "Keep grinding nub or join our clan to be strong.",
+          content: "You need a qualifying role before you can access Tier 3 notifications.",
           ephemeral: true
         });
       }

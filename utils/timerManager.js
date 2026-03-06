@@ -82,41 +82,20 @@ const triggerNotification = async (client, reminderId) => {
 
         const userSettings = getUserSettings(reminder.userId);
         const sendReminder = !userSettings || userSettings[reminder.type] !== false;
-        const forceDm = reminder.type === 'raid' || (userSettings && userSettings.dmNotifications);
 
         if (sendReminder) {
-            let sentToChannel = false;
-
-            if (!forceDm) {
-                try {
-                    const channel = await getGuildChannel(client, reminder.channelId);
-                    if (channel) {
-                        await channel.send(reminder.reminderMessage);
-                        await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId}, Channel: ${reminder.channelId}`);
-                        sentToChannel = true;
-                    }
-                } catch (err) {
-                    console.error(`[TimerManager] Failed to send to channel ${reminder.channelId}:`, err);
+            try {
+                const channel = await getGuildChannel(client, reminder.channelId);
+                if (channel) {
+                    await channel.send(reminder.reminderMessage);
+                    await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId}, Channel: ${reminder.channelId}`);
+                } else {
+                    console.error(`[TimerManager] Channel not found for reminder ${id}`);
+                    await sendError(`[ERROR] [TimerManager] Channel not found for reminder ${id}`);
                 }
-            }
-
-            if (forceDm || !sentToChannel) {
-                try {
-                    const user = await client.users.fetch(reminder.userId);
-                    let msg = reminder.reminderMessage;
-
-                    if (reminder.type !== 'raid' && reminder.guildId && reminder.channelId) {
-                        msg += `\n→ https://discord.com/channels/${reminder.guildId}/${reminder.channelId}`;
-                    }
-
-                    await user.send(msg);
-                    await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId} via DM`);
-                } catch (err) {
-                    if (err.code !== 50007) {
-                        console.error(`[TimerManager] Failed to DM user ${reminder.userId}:`, err);
-                        await sendError(`[ERROR] [TimerManager] Failed to DM user ${reminder.userId}: ${err.message}`);
-                    }
-                }
+            } catch (err) {
+                console.error(`[TimerManager] Failed to send to channel ${reminder.channelId}:`, err);
+                await sendError(`[ERROR] [TimerManager] Failed to send to channel ${reminder.channelId}: ${err.message}`);
             }
         }
 

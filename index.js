@@ -16,7 +16,7 @@ const {
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
-const WebSocket = require("ws"); // 🌸 Added WebSocket
+const WebSocket = require("ws");
 
 const { initTimerManager } = require("./utils/timerManager");
 const { initializeSettings } = require("./utils/settingsManager");
@@ -29,6 +29,23 @@ const {
   processInventoryUpdate
 } = require("./utils/inventoryProcessor");
 
+// 🌸 GLOBAL MAINTENANCE STATE
+let maintenance = false;
+let maintenanceReason = null;
+
+module.exports.getMaintenanceState = () => ({
+  maintenance,
+  maintenanceReason
+});
+
+module.exports.setMaintenanceState = (state, reason = null) => {
+  maintenance = state;
+  maintenanceReason = reason;
+};
+
+// -----------------------------
+// ERROR HANDLERS
+// -----------------------------
 process.on("unhandledRejection", async (reason, promise) => {
   console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
   await sendError(`[CRITICAL] Unhandled Rejection: ${reason?.message || reason}`);
@@ -39,6 +56,9 @@ process.on("uncaughtException", async (error) => {
   await sendError(`[CRITICAL] Uncaught Exception: ${error.message}`);
 });
 
+// -----------------------------
+// DISCORD CLIENT
+// -----------------------------
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -72,10 +92,12 @@ const client = new Client({
 
 client.inventorySessions = new Map();
 client.isReady = false;
-
 client.commandCount = 0;
 client.activityStats = [];
 
+// -----------------------------
+// ACTIVITY TRACKING
+// -----------------------------
 function trackActivity() {
   const hour = new Date().getHours();
   const entry = client.activityStats.find((x) => x.hour === hour);
@@ -84,6 +106,9 @@ function trackActivity() {
   if (client.activityStats.length > 24) client.activityStats.shift();
 }
 
+// -----------------------------
+// COMMAND LOADING
+// -----------------------------
 client.commands = new Collection();
 const commandsPath = path.join(__dirname, "commands");
 
@@ -113,6 +138,9 @@ function loadCommandsRecursively(dir) {
 
 loadCommandsRecursively(commandsPath);
 
+// -----------------------------
+// EVENT LOADING
+// -----------------------------
 const eventsPath = path.join(__dirname, "events");
 const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
 
@@ -129,6 +157,9 @@ for (const file of eventFiles) {
   }
 }
 
+// -----------------------------
+// MESSAGE PROCESSING
+// -----------------------------
 const { processMessage, processBossAndCardMessage } = require("./utils/messageProcessor");
 
 client.on(Events.MessageCreate, async (message) => {
@@ -149,42 +180,67 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
   await processInventoryReaction(reaction, user, client);
 });
 
+// -----------------------------
+// INTERACTION HANDLER
+// -----------------------------
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== "sync") return;
 
-  client.commandCount++;
+  // 🌸 AUTO-DISABLE DURING MAINTENANCE
+  const { maintenance, maintenanceReason } = module.exports.getMaintenanceState();
+  const isAdmin = interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
 
-  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
-    return interaction.reply({ content: "⛔ You do not have permission to use this command.", ephemeral: true });
+  if (maintenance && !isAdmin && interaction.commandName !== "maintenance") {
+    return interaction.reply({
+      content:
+        `🟡 **Endmin is currently in maintenance mode**\n` +
+        `Reason: **${maintenanceReason || "No reason provided"}**\n\n` +
+        `Commands are temporarily disabled.`,
+      ephemeral: true
+    });
   }
 
-  const scope = interaction.options.getString("scope");
+  // 🌸 SYNC COMMAND
+  if (interaction.commandName === "sync") {
+    client.commandCount++;
+
+    if (!isAdmin) {
+      return interaction.reply({ content: "⛔ You do not have permission to use this command.", ephemeral: true });
+    }
+
+    const scope = interaction.options.getString("scope");
+
+    try {
+      if (scope === "global") {
+        await client.application.commands.set([...client.commands.values()].map((c) => c.data));
+        return interaction.reply({ content: "🌍 Global commands synced.", ephemeral: true });
+      }
+      if (scope === "guild") {
+        await interaction.guild.commands.set([...client.commands.values()].map((c) => c.data));
+        return interaction.reply({ content: "🏠 Guild commands synced.", ephemeral: true });
+      }
+      return interaction.reply({ content: "❌ Invalid scope.", ephemeral: true });
+    } catch (err) {
+      console.error("Sync error:", err);
+      return interaction.reply({ content: "❌ Sync failed.", ephemeral: true });
+    }
+  }
+
+  // 🌸 NORMAL COMMAND EXECUTION
+  const command = client.commands.get(interaction.commandName);
+  if (!command) return;
 
   try {
-    if (scope === "global") {
-      await client.application.commands.set([...client.commands.values()].map((c) => c.data));
-      return interaction.reply({ content: "🌍 Global commands synced.", ephemeral: true });
-    }
-    if (scope === "guild") {
-      await interaction.guild.commands.set([...client.commands.values()].map((c) => c.data));
-      return interaction.reply({ content: "🏠 Guild commands synced.", ephemeral: true });
-    }
-    return interaction.reply({ content: "❌ Invalid scope.", ephemeral: true });
+    await command.execute(interaction);
   } catch (err) {
-    console.error("Sync error:", err);
-    return interaction.reply({ content: "❌ Sync failed.", ephemeral: true });
+    console.error("Command error:", err);
   }
 });
 
-client.on(Events.GuildCreate, async (guild) => {
-  console.log(`[GUILD JOIN] Added to guild: ${guild.name} (${guild.id})`);
-});
-
-// 🌸 Uptime + Maintenance Flags
+// -----------------------------
+// BOT READY
+// -----------------------------
 const startTime = Date.now();
-let maintenance = false;
-let maintenanceReason = null;
 
 (async () => {
   try {
@@ -226,14 +282,14 @@ let maintenanceReason = null;
       updateStatus();
       setInterval(updateStatus, 300000);
 
-      // 🌸 WebSocket Server for StatusBot
+      // 🌸 WEBSOCKET SERVER FOR STATUSBOT
       const wss = new WebSocket.Server({ port: 8080 });
 
-      wss.on("connection", (ws) => {
+      wss.on("connection", () => {
         console.log("StatusBot connected to Endmin WebSocket");
       });
 
-      // 🌸 Heartbeat every 60 seconds
+      // 🌸 HEARTBEAT EVERY 60 SECONDS
       setInterval(() => {
         const payload = {
           status: "online",

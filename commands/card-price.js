@@ -17,14 +17,14 @@ module.exports = {
           value:
             "<:LU_Legendary:1478080802557394974> **8** <:LU_Cores:1478081091511517286>\n" +
             "<:LU_Exotic:1478080867954983003> **3** <:LU_Cores:1478081091511517286>\n" +
-            "<:LU_Rare:1478080922434928794> **1**",
+            "<:LU_Rare:1478080922434928794> **1** <:LU_Cores:1478081091511517286>",
           inline: false
         },
         {
           name: "**Iconics**",
           value:
             "<:LU_Legendary:1478080802557394974> **16~18** <:LU_Cores:1478081091511517286>\n" +
-            "<:LU_Exotic:1478080867954983003> **8**\n" +
+            "<:LU_Exotic:1478080867954983003> **8** <:LU_Cores:1478081091511517286>\n" +
             "<:LU_Rare:1478080922434928794> **2~3** <:LU_Cores:1478081091511517286>",
           inline: false
         },
@@ -43,7 +43,7 @@ module.exports = {
           inline: false
         }
       )
-      .setFooter({ text: "Luvi Helper Bot — Powered by Biyhung" });
+      .setFooter({ text: "Endmin Luvi Helper — Powered by Alex" });
 
     await interaction.reply({
       embeds: [embed],

@@ -21,7 +21,6 @@ const { initTimerManager } = require("./utils/timerManager");
 const { initializeSettings } = require("./utils/settingsManager");
 const { initializeUserSettings } = require("./utils/userSettingsManager");
 const { sendError } = require("./utils/logger");
-const createDashboard = require("./dashboard/dashboardServer");
 
 const {
   processInventoryMessage,
@@ -72,13 +71,6 @@ const client = new Client({
 
 client.inventorySessions = new Map();
 client.isReady = false;
-
-client._dashboardLogs = [];
-client.dashLog = function (msg) {
-  const line = `[${new Date().toISOString()}] ${msg}`;
-  client._dashboardLogs.push(line);
-  if (client._dashboardLogs.length > 200) client._dashboardLogs.shift();
-};
 
 client.commandCount = 0;
 client.activityStats = [];
@@ -206,23 +198,18 @@ client.on(Events.GuildCreate, async (guild) => {
 
       client.isReady = true;
 
-      createDashboard(client);
-      client.dashLog("Dashboard started.");
-
       await initializeSettings();
       await initializeUserSettings();
       initTimerManager(readyClient);
 
       if (worldAttack.init) {
         await worldAttack.init(readyClient);
-        client.dashLog("WorldAttack initialized.");
       }
 
       try {
         await client.application.commands.set([...client.commands.values()].map((c) => c.data));
-        client.dashLog("Commands synced globally.");
       } catch (err) {
-        client.dashLog("Sync error: " + err.message);
+        console.log("Sync error: " + err.message);
       }
 
       const updateStatus = () => {

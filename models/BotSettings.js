@@ -13,4 +13,4 @@ const botSettingsSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('BotSettings', botSettingsSchema);
+module.exports = mongoose.models.BotSettings || mongoose.model('BotSettings', botSettingsSchema);

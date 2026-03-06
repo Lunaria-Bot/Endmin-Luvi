@@ -238,10 +238,41 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // -----------------------------
-// BOT READY
+// WEBSOCKET SERVER (ALWAYS ON)
 // -----------------------------
 const startTime = Date.now();
 
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on("connection", () => {
+  console.log("StatusBot connected to Endmin WebSocket");
+});
+
+// 🌸 HEARTBEAT EVERY 60 SECONDS
+setInterval(() => {
+  const payload = {
+    status: "online",
+    ping: client.ws.ping,
+    uptime: Math.floor((Date.now() - startTime) / 1000),
+    lastRestart: startTime,
+    maintenance,
+    maintenanceReason
+  };
+
+  const json = JSON.stringify(payload);
+
+  wss.clients.forEach((socket) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(json);
+    }
+  });
+
+  console.log("Heartbeat sent:", payload);
+}, 60000);
+
+// -----------------------------
+// BOT READY
+// -----------------------------
 (async () => {
   try {
     if (!process.env.MONGO_URI) throw new Error("Missing MONGO_URI");
@@ -281,35 +312,6 @@ const startTime = Date.now();
 
       updateStatus();
       setInterval(updateStatus, 300000);
-
-      // 🌸 WEBSOCKET SERVER FOR STATUSBOT
-      const wss = new WebSocket.Server({ port: 8080 });
-
-      wss.on("connection", () => {
-        console.log("StatusBot connected to Endmin WebSocket");
-      });
-
-      // 🌸 HEARTBEAT EVERY 60 SECONDS
-      setInterval(() => {
-        const payload = {
-          status: "online",
-          ping: readyClient.ws.ping,
-          uptime: Math.floor((Date.now() - startTime) / 1000),
-          lastRestart: startTime,
-          maintenance,
-          maintenanceReason
-        };
-
-        const json = JSON.stringify(payload);
-
-        wss.clients.forEach((socket) => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(json);
-          }
-        });
-
-        console.log("Heartbeat sent:", payload);
-      }, 60000);
     });
 
     await client.login(process.env.TOKEN);

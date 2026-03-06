@@ -4,4 +4,6 @@ const schema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true }
 });
 
-module.exports = mongoose.model("WorldAttackOptOut", schema);
+module.exports =
+  mongoose.models.WorldAttackOptOut ||
+  mongoose.model("WorldAttackOptOut", schema);

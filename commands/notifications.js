@@ -23,12 +23,11 @@ module.exports = {
               { name: 'Stamina', value: 'stamina' },
               { name: 'Raid Fatigue', value: 'raid' },
               { name: 'Raid Spawn', value: 'raid_spawn' },
-              { name: 'Card Drop', value: 'card_drop' },
-              { name: 'DM Notifications', value: 'dmNotifications' }
+              { name: 'Card Drop', value: 'card_drop' }
             ))
         .addBooleanOption(option =>
           option.setName('enabled')
-            .setDescription('Whether to enable or disable this notification.')
+            .setDescription('Enable or disable this notification.')
             .setRequired(true))
     ),
 
@@ -37,18 +36,19 @@ module.exports = {
       const subcommand = interaction.options.getSubcommand();
       const userId = interaction.user.id;
 
-      // Always defer to avoid "Unknown interaction"
       await interaction.deferReply({ ephemeral: true });
 
+      // Default settings (sans DM)
+      const defaultSettings = {
+        expedition: true,
+        stamina: true,
+        raid: true,
+        raid_spawn: true,
+        card_drop: true
+      };
+
       if (subcommand === 'view') {
-        let settings = getUserSettings(userId) || {
-          expedition: true,
-          stamina: true,
-          raid: true,
-          raid_spawn: true,
-          card_drop: true,
-          dmNotifications: false
-        };
+        const settings = getUserSettings(userId) || defaultSettings;
 
         return await interaction.editReply({
           embeds: [{
@@ -59,8 +59,7 @@ module.exports = {
               { name: 'Stamina', value: settings.stamina ? 'Enabled' : 'Disabled', inline: true },
               { name: 'Raid Fatigue', value: settings.raid ? 'Enabled' : 'Disabled', inline: true },
               { name: 'Raid Spawn', value: settings.raid_spawn ? 'Enabled' : 'Disabled', inline: true },
-              { name: 'Card Drop', value: settings.card_drop ? 'Enabled' : 'Disabled', inline: true },
-              { name: 'DM Notifications', value: settings.dmNotifications ? 'Enabled' : 'Disabled', inline: true },
+              { name: 'Card Drop', value: settings.card_drop ? 'Enabled' : 'Disabled', inline: true }
             ]
           }]
         });
@@ -72,12 +71,9 @@ module.exports = {
 
         await updateUserSettings(userId, { [type]: enabled });
 
-        const replyContent =
-          type === 'dmNotifications'
-            ? `You will now ${enabled ? 'receive' : 'stop receiving'} reminders in your DMs.`
-            : `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`;
-
-        return await interaction.editReply({ content: replyContent });
+        return await interaction.editReply({
+          content: `Notifications for **${type}** have been **${enabled ? 'enabled' : 'disabled'}**.`
+        });
       }
 
     } catch (error) {

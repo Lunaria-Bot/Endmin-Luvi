@@ -1,33 +1,44 @@
-require('dotenv').config();
+require("dotenv").config({
+  path: process.env.NODE_ENV === "local" ? ".env.local" : ".env"
+});
+
 const {
   Client,
   GatewayIntentBits,
+  Partials,
   Collection,
   Events,
   PermissionsBitField,
   ActivityType,
   Options
-} = require('discord.js');
-const mongoose = require('mongoose');
-const fs = require('fs');
-const path = require('path');
-const { initTimerManager } = require('./utils/timerManager');
-const { initializeSettings } = require('./utils/settingsManager');
-const { initializeUserSettings } = require('./utils/userSettingsManager');
-const { sendError } = require('./utils/logger');
+} = require("discord.js");
 
-// --- Global Error Handling ---
-process.on('unhandledRejection', async (reason, promise) => {
-  console.error('[CRITICAL] Unhandled Rejection at:', promise, 'reason:', reason);
+const mongoose = require("mongoose");
+const fs = require("fs");
+const path = require("path");
+
+const { initTimerManager } = require("./utils/timerManager");
+const { initializeSettings } = require("./utils/settingsManager");
+const { initializeUserSettings } = require("./utils/userSettingsManager");
+const { sendError } = require("./utils/logger");
+const createDashboard = require("./dashboard/dashboardServer");
+
+const {
+  processInventoryMessage,
+  processInventoryReaction,
+  processInventoryUpdate
+} = require("./utils/inventoryProcessor");
+
+process.on("unhandledRejection", async (reason, promise) => {
+  console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
   await sendError(`[CRITICAL] Unhandled Rejection: ${reason?.message || reason}`);
 });
 
-process.on('uncaughtException', async (error) => {
-  console.error('[CRITICAL] Uncaught Exception:', error);
+process.on("uncaughtException", async (error) => {
+  console.error("[CRITICAL] Uncaught Exception:", error);
   await sendError(`[CRITICAL] Uncaught Exception: ${error.message}`);
 });
 
-// --- Client Setup ---
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -35,119 +46,121 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildIntegrations,
+    GatewayIntentBits.GuildMessageReactions
+  ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction
   ],
   makeCache: Options.cacheWithLimits({
     ...Options.DefaultMakeCacheSettings,
     MessageManager: 200,
-    GuildMemberManager: 10,
-    UserManager: 100,
+    GuildMemberManager: 20,
+    UserManager: 200,
+    ReactionManager: 100,
     ThreadManager: 0,
     PresenceManager: 0,
-    ReactionManager: 0,
-    GuildScheduledEventManager: 0,
+    GuildScheduledEventManager: 0
   }),
   sweepers: {
     ...Options.DefaultSweeperSettings,
-    messages: {
-      interval: 3600,
-      lifetime: 1800,
-    },
-    users: {
-      interval: 3600,
-      filter: () => user => user.id !== client.user.id,
-    },
-  },
+    messages: { interval: 3600, lifetime: 1800 },
+    users: { interval: 3600, filter: () => (user) => user.id !== client.user.id }
+  }
 });
 
-// --- Load Commands (Recursive Loader) ---
+client.inventorySessions = new Map();
+client.isReady = false;
+
+client._dashboardLogs = [];
+client.dashLog = function (msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  client._dashboardLogs.push(line);
+  if (client._dashboardLogs.length > 200) client._dashboardLogs.shift();
+};
+
+client.commandCount = 0;
+client.activityStats = [];
+
+function trackActivity() {
+  const hour = new Date().getHours();
+  const entry = client.activityStats.find((x) => x.hour === hour);
+  if (entry) entry.count++;
+  else client.activityStats.push({ hour, count: 1 });
+  if (client.activityStats.length > 24) client.activityStats.shift();
+}
+
 client.commands = new Collection();
-const commandsPath = path.join(__dirname, 'commands');
+const commandsPath = path.join(__dirname, "commands");
 
 function loadCommandsRecursively(dir) {
   const files = fs.readdirSync(dir);
-
   for (const file of files) {
     const fullPath = path.join(dir, file);
-
     if (fs.statSync(fullPath).isDirectory()) {
       loadCommandsRecursively(fullPath);
       continue;
     }
-
-    if (!file.endsWith('.js')) continue;
-
+    if (!file.endsWith(".js")) continue;
     const command = require(fullPath);
-
-    // Support modules exporting multiple commands (like worldAttack)
     if (Array.isArray(command.data)) {
       for (const cmd of command.data) {
-        client.commands.set(cmd.name, {
-          data: cmd,
-          execute: command.execute
-        });
+        client.commands.set(cmd.name, { data: cmd, execute: command.execute });
         console.log(`Loaded command: ${cmd.name}`);
       }
       continue;
     }
-
     if (command.data && command.execute) {
       client.commands.set(command.data.name, command);
       console.log(`Loaded command: ${command.data.name}`);
-    } else {
-      console.warn(`Skipped loading ${file}: missing data or execute`);
     }
   }
 }
 
 loadCommandsRecursively(commandsPath);
 
-// --- Load Events ---
-const eventsPath = path.join(__dirname, 'events');
-console.log("EVENTS PATH:", eventsPath);
-
-const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-console.log("EVENT FILES FOUND:", eventFiles);
+const eventsPath = path.join(__dirname, "events");
+const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
 
 for (const file of eventFiles) {
   const filePath = path.join(eventsPath, file);
-
   try {
     const event = require(filePath);
-
-    if (!event.name || !event.execute) {
-      console.warn(`[WARN] Event file ${file} is missing name or execute`);
-      continue;
-    }
-
-    if (event.once) {
-      client.once(event.name, (...args) => event.execute(...args));
-    } else {
-      client.on(event.name, (...args) => event.execute(...args));
-    }
-
+    if (!event.name || !event.execute) continue;
+    if (event.once) client.once(event.name, (...args) => event.execute(...args, client));
+    else client.on(event.name, (...args) => event.execute(...args, client));
     console.log(`[EVENT LOADED] ${event.name} from ${file}`);
   } catch (err) {
     console.error(`[EVENT ERROR] Failed to load ${file}:`, err);
   }
 }
 
-// --- Message Processing ---
-const { processMessage, processBossAndCardMessage } = require('./utils/messageProcessor');
+const { processMessage, processBossAndCardMessage } = require("./utils/messageProcessor");
 
 client.on(Events.MessageCreate, async (message) => {
+  trackActivity();
   await processMessage(message);
   await processBossAndCardMessage(message);
+  await processInventoryMessage(message, client);
 });
 
 client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
-  if (newMessage.author.id !== '1269481871021047891') return;
+  if (newMessage.author.id !== "1269481871021047891") return;
+  trackActivity();
   await processMessage(newMessage, oldMessage);
+  await processInventoryUpdate(newMessage, client);
 });
 
-// --- Sync Command (Admin Only) ---
-client.on(Events.InteractionCreate, async interaction => {
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+  await processInventoryReaction(reaction, user, client);
+});
+
+client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "sync") return;
+
+  client.commandCount++;
 
   if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
     return interaction.reply({ content: "⛔ You do not have permission to use this command.", ephemeral: true });
@@ -157,64 +170,59 @@ client.on(Events.InteractionCreate, async interaction => {
 
   try {
     if (scope === "global") {
-      await client.application.commands.set([...client.commands.values()].map(c => c.data));
+      await client.application.commands.set([...client.commands.values()].map((c) => c.data));
       return interaction.reply({ content: "🌍 Global commands synced.", ephemeral: true });
     }
-
     if (scope === "guild") {
-      await interaction.guild.commands.set([...client.commands.values()].map(c => c.data));
+      await interaction.guild.commands.set([...client.commands.values()].map((c) => c.data));
       return interaction.reply({ content: "🏠 Guild commands synced.", ephemeral: true });
     }
-
     return interaction.reply({ content: "❌ Invalid scope.", ephemeral: true });
-
   } catch (err) {
     console.error("Sync error:", err);
     return interaction.reply({ content: "❌ Sync failed.", ephemeral: true });
   }
 });
 
-// --- Guild Join Setup (NO MESSAGE SENT) ---
 client.on(Events.GuildCreate, async (guild) => {
   console.log(`[GUILD JOIN] Added to guild: ${guild.name} (${guild.id})`);
 });
 
-// --- MongoDB + Bot Login ---
 (async () => {
   try {
-    if (!process.env.MONGODB_URI) throw new Error("Missing MONGODB_URI");
-    if (!process.env.BOT_TOKEN) throw new Error("Missing BOT_TOKEN");
+    if (!process.env.MONGO_URI) throw new Error("Missing MONGO_URI");
+    if (!process.env.TOKEN) throw new Error("Missing TOKEN");
 
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('Connected to MongoDB');
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("Connected to MongoDB");
 
-    const Reminder = require('./models/Reminder');
-    await Reminder.syncIndexes().catch(err => console.error("Failed to sync Reminder indexes:", err));
+    const Reminder = require("./models/Reminder");
+    await Reminder.syncIndexes();
 
-    // Load World Attack system
     const worldAttack = require("./commands/worldAttack");
 
-    client.once(Events.ClientReady, async readyClient => {
+    client.once(Events.ClientReady, async (readyClient) => {
       console.log(`Bot logged in as ${readyClient.user.tag}`);
+
+      client.isReady = true;
+
+      createDashboard(client);
+      client.dashLog("Dashboard started.");
 
       await initializeSettings();
       await initializeUserSettings();
       initTimerManager(readyClient);
 
-      // Initialize World Attack daily reminder
       if (worldAttack.init) {
         await worldAttack.init(readyClient);
-        console.log("[WorldAttack] System initialized.");
+        client.dashLog("WorldAttack initialized.");
       }
 
-      // --- Auto Sync Commands on Startup ---
       try {
-        await client.application.commands.set(
-          [...client.commands.values()].map(c => c.data)
-        );
-        console.log("[SYNC] Commands synced globally on startup.");
+        await client.application.commands.set([...client.commands.values()].map((c) => c.data));
+        client.dashLog("Commands synced globally.");
       } catch (err) {
-        console.error("[SYNC ERROR]", err);
+        client.dashLog("Sync error: " + err.message);
       }
 
       const updateStatus = () => {
@@ -226,9 +234,9 @@ client.on(Events.GuildCreate, async (guild) => {
       setInterval(updateStatus, 300000);
     });
 
-    await client.login(process.env.BOT_TOKEN);
+    await client.login(process.env.TOKEN);
   } catch (err) {
-    console.error('Failed to connect or login:', err);
+    console.error("Failed to connect or login:", err);
     process.exit(1);
   }
 })();

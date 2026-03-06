@@ -6,7 +6,9 @@ module.exports = {
     if (message.author.bot) return;
     if (!message.mentions.users.size) return;
 
-    for (const [id] of message.mentions.users) {
+    const mentionedIds = [...message.mentions.users.keys()];
+
+    for (const id of mentionedIds) {
       const afk = await Afk.findOne({ userId: id });
       if (!afk) continue;
 

@@ -16,6 +16,7 @@ const {
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
+const WebSocket = require("ws"); // 🌸 Added WebSocket
 
 const { initTimerManager } = require("./utils/timerManager");
 const { initializeSettings } = require("./utils/settingsManager");
@@ -180,6 +181,11 @@ client.on(Events.GuildCreate, async (guild) => {
   console.log(`[GUILD JOIN] Added to guild: ${guild.name} (${guild.id})`);
 });
 
+// 🌸 Uptime + Maintenance Flags
+const startTime = Date.now();
+let maintenance = false;
+let maintenanceReason = null;
+
 (async () => {
   try {
     if (!process.env.MONGO_URI) throw new Error("Missing MONGO_URI");
@@ -219,6 +225,35 @@ client.on(Events.GuildCreate, async (guild) => {
 
       updateStatus();
       setInterval(updateStatus, 300000);
+
+      // 🌸 WebSocket Server for StatusBot
+      const wss = new WebSocket.Server({ port: 8080 });
+
+      wss.on("connection", (ws) => {
+        console.log("StatusBot connected to Endmin WebSocket");
+      });
+
+      // 🌸 Heartbeat every 60 seconds
+      setInterval(() => {
+        const payload = {
+          status: "online",
+          ping: readyClient.ws.ping,
+          uptime: Math.floor((Date.now() - startTime) / 1000),
+          lastRestart: startTime,
+          maintenance,
+          maintenanceReason
+        };
+
+        const json = JSON.stringify(payload);
+
+        wss.clients.forEach((socket) => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(json);
+          }
+        });
+
+        console.log("Heartbeat sent:", payload);
+      }, 60000);
     });
 
     await client.login(process.env.TOKEN);

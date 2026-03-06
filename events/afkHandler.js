@@ -5,13 +5,19 @@ module.exports = {
   async execute(message) {
     if (message.author.bot) return;
 
-    const afk = await Afk.findOne({ userId: message.author.id });
+    const userId = message.author.id;
+
+    if (userId === "912376040142307419") {
+      return;
+    }
+
+    const afk = await Afk.findOne({ userId });
     if (!afk) return;
 
-    await Afk.deleteOne({ userId: message.author.id });
+    await Afk.deleteOne({ userId });
 
     message.reply({
-      content: `🟢 Welcome back <@${message.author.id}>! I removed your AFK status.`,
+      content: `🟢 Welcome back <@${userId}>! I removed your AFK status.`,
       allowedMentions: { repliedUser: false }
     });
   }

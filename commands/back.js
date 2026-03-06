@@ -19,7 +19,7 @@ module.exports = {
     const afk = await Afk.findOne({ userId });
     if (!afk) {
       return interaction.reply({
-        content: '🌙 You are not AFK.',
+        content: '🌙 You are not AFK Alex.',
         ephemeral: true
       });
     }

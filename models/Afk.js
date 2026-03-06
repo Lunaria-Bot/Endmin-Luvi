@@ -1,16 +1,9 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const botSettingsSchema = new mongoose.Schema({
-  guildId: { type: String, required: true, unique: true },
-
-  t1RoleId: { type: String, default: null },
-  t2RoleId: { type: String, default: null },
-  t3RoleId: { type: String, default: null },
-
-  raidResetPingChannelId: { type: String, default: null },
-  raidResetPingRoleId: { type: String, default: null }
-}, {
-  timestamps: true
+const afkSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true },
+  reason: { type: String, default: "AFK" },
+  since: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('BotSettings', botSettingsSchema);
+module.exports = mongoose.models.Afk || mongoose.model("Afk", afkSchema);

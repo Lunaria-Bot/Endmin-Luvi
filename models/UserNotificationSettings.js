@@ -14,4 +14,6 @@ const userNotificationSettingsSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('UserNotificationSettings', userNotificationSettingsSchema);
+module.exports =
+  mongoose.models.UserNotificationSettings ||
+  mongoose.model('UserNotificationSettings', userNotificationSettingsSchema);

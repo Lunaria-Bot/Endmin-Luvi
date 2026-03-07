@@ -1,4 +1,10 @@
-const { Events } = require("discord.js");
+const {
+    Events,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
+} = require("discord.js");
+
 const Reminder = require("../models/Reminder");
 const { setTimer } = require("../utils/timerManager");
 const { sendLog, sendError } = require("../utils/logger");
@@ -10,11 +16,12 @@ module.exports = {
 
         // Log only slash commands & buttons
         if (interaction.isChatInputCommand() || interaction.isButton()) {
-            console.log(`[INTERACTION] User: ${interaction.user?.id} | ${interaction.commandName || interaction.customId}`);
+            console.log(
+                `[INTERACTION] User: ${interaction.user?.id} | ${interaction.commandName || interaction.customId}`
+            );
         }
 
         try {
-
             // ============================
             // SLASH COMMANDS
             // ============================
@@ -31,7 +38,7 @@ module.exports = {
                     console.error(`[CMD ERROR] ${interaction.commandName}:`, error);
                     await sendError(`[CMD ERROR] ${interaction.commandName}: ${error.message}`);
 
-                    // Try to reply safely
+                    // Safe reply
                     if (!interaction.replied && !interaction.deferred) {
                         try {
                             await interaction.reply({
@@ -53,10 +60,14 @@ module.exports = {
 
                 console.log(`[BUTTON] ${customId} clicked by ${user.id}`);
 
+                // ----------------------------
+                // STAMINA BUTTONS
+                // ----------------------------
                 if (customId.startsWith("stamina_")) {
                     const mentionedUserIdMatch = message.content.match(/<@(\d+)>/);
                     const mentionedUserId = mentionedUserIdMatch ? mentionedUserIdMatch[1] : null;
 
+                    // Prevent others from clicking
                     if (mentionedUserId && user.id !== mentionedUserId) {
                         if (!interaction.replied && !interaction.deferred) {
                             await interaction.reply({
@@ -104,13 +115,27 @@ module.exports = {
 
                         await interaction.editReply({ content: confirmationMessage });
 
-                        await sendLog(`[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}`);
+                        await sendLog(
+                            `[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}`
+                        );
 
                         // Disable buttons
                         const disabledRow = new ActionRowBuilder().addComponents(
-                            new ButtonBuilder().setCustomId("stamina_25").setLabel("Remind at 25%").setStyle(ButtonStyle.Primary).setDisabled(true),
-                            new ButtonBuilder().setCustomId("stamina_50").setLabel("Remind at 50%").setStyle(ButtonStyle.Primary).setDisabled(true),
-                            new ButtonBuilder().setCustomId("stamina_100").setLabel("Remind at 100%").setStyle(ButtonStyle.Primary).setDisabled(true)
+                            new ButtonBuilder()
+                                .setCustomId("stamina_25")
+                                .setLabel("Remind at 25%")
+                                .setStyle(ButtonStyle.Primary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId("stamina_50")
+                                .setLabel("Remind at 50%")
+                                .setStyle(ButtonStyle.Primary)
+                                .setDisabled(true),
+                            new ButtonBuilder()
+                                .setCustomId("stamina_100")
+                                .setLabel("Remind at 100%")
+                                .setStyle(ButtonStyle.Primary)
+                                .setDisabled(true)
                         );
 
                         await message.edit({ components: [disabledRow] });

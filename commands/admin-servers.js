@@ -46,6 +46,9 @@ module.exports = {
       });
     }
 
+    // Prevent "Unknown interaction"
+    await interaction.deferReply({ ephemeral: true });
+
     const sub = interaction.options.getSubcommand();
     const client = interaction.client;
 
@@ -64,9 +67,8 @@ module.exports = {
         .setFooter({ text: `Total servers: ${guilds.size}` })
         .setTimestamp();
 
-      return interaction.reply({
-        embeds: [embed],
-        ephemeral: true
+      return interaction.editReply({
+        embeds: [embed]
       });
     }
 
@@ -78,10 +80,7 @@ module.exports = {
       const guild = client.guilds.cache.get(serverId);
 
       if (!guild) {
-        return interaction.reply({
-          content: "❌ The bot is not in this server.",
-          ephemeral: true
-        });
+        return interaction.editReply("❌ The bot is not in this server.");
       }
 
       const embed = new EmbedBuilder()
@@ -96,9 +95,8 @@ module.exports = {
         .setThumbnail(guild.iconURL({ size: 1024 }))
         .setTimestamp();
 
-      return interaction.reply({
-        embeds: [embed],
-        ephemeral: true
+      return interaction.editReply({
+        embeds: [embed]
       });
     }
 
@@ -110,18 +108,14 @@ module.exports = {
       const guild = client.guilds.cache.get(serverId);
 
       if (!guild) {
-        return interaction.reply({
-          content: "❌ The bot is not in this server.",
-          ephemeral: true
-        });
+        return interaction.editReply("❌ The bot is not in this server.");
       }
 
       await guild.leave();
 
-      return interaction.reply({
-        content: `✅ Successfully left **${guild.name}** (\`${guild.id}\`)`,
-        ephemeral: true
-      });
+      return interaction.editReply(
+        `✅ Successfully left **${guild.name}** (\`${guild.id}\`)`
+      );
     }
   }
 };

@@ -2,29 +2,31 @@ const Reminder = require('../models/Reminder');
 const { getUserSettings } = require('./userSettingsManager');
 const { sendLog, sendError } = require('./logger');
 const { getGuildChannel } = require('./messageUtils');
-const { EmbedBuilder } = require('discord.js');
 
 const timeoutMap = new Map();
 
-const sendErrorEmbed = async (title, fields = []) => {
-    const embed = new EmbedBuilder()
-        .setTitle(`❌ ${title}`)
-        .setColor('#ff4d6d')
-        .addFields(fields)
-        .setTimestamp();
+// Convert embed-like structure to clean text for your logger
+function formatFields(fields) {
+    return fields.map(f => `• **${f.name}:** ${f.value}`).join("\n");
+}
 
-    await sendError({ embeds: [embed] });
-};
+async function sendErrorEmbed(title, fields = []) {
+    const text =
+        `❌ **${title}**\n` +
+        `${formatFields(fields)}\n` +
+        `⏱️ ${new Date().toISOString()}`;
 
-const sendLogEmbed = async (title, fields = []) => {
-    const embed = new EmbedBuilder()
-        .setTitle(`📘 ${title}`)
-        .setColor('#6d28d9')
-        .addFields(fields)
-        .setTimestamp();
+    await sendError(text);
+}
 
-    await sendLog({ embeds: [embed] });
-};
+async function sendLogEmbed(title, fields = []) {
+    const text =
+        `📘 **${title}**\n` +
+        `${formatFields(fields)}\n` +
+        `⏱️ ${new Date().toISOString()}`;
+
+    await sendLog(text);
+}
 
 const setTimer = async (client, reminderData) => {
     try {

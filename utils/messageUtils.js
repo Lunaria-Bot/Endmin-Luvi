@@ -1,4 +1,5 @@
 const { DiscordAPIError } = require('discord.js');
+const { logError } = require('./logger');
 
 /**
  * Fetches a guild text channel and verifies permissions.
@@ -9,13 +10,30 @@ const { DiscordAPIError } = require('discord.js');
 const getGuildChannel = async (client, channelId) => {
     try {
         const channel = await client.channels.fetch(channelId);
-        if (!channel || !channel.isTextBased() || channel.isDMBased()) return null;
 
-        return channel;
-    } catch (error) {
-        if (error.code === 10003) { // Unknown Channel
+        if (!channel || !channel.isTextBased() || channel.isDMBased()) {
+            await logError("channel_invalid", [
+                { name: "Channel ID", value: channelId },
+                { name: "Reason", value: "Not a valid text channel" }
+            ]);
             return null;
         }
+
+        return channel;
+
+    } catch (error) {
+        if (error.code === 10003) { // Unknown Channel
+            await logError("channel_not_found", [
+                { name: "Channel ID", value: channelId }
+            ]);
+            return null;
+        }
+
+        await logError("channel_fetch_failed", [
+            { name: "Channel ID", value: channelId },
+            { name: "Error", value: error.message }
+        ]);
+
         throw error;
     }
 };
@@ -32,15 +50,25 @@ const reply = async (message, content, autoDelete = false) => {
 
     try {
         msg = await message.reply(content);
+
     } catch (error) {
         if (error instanceof DiscordAPIError) {
             if (error.code === 50035 || error.code === 10008) {
-                console.warn(`[REPLY] Could not reply to message ${message.id} in channel ${message.channelId}.`);
+                await logError("reply_failed", [
+                    { name: "Message ID", value: message.id },
+                    { name: "Channel ID", value: message.channelId },
+                    { name: "Reason", value: "Message deleted or invalid" }
+                ]);
                 return;
             }
         }
 
-        console.error('[Reply] Unexpected error when replying:', error);
+        await logError("reply_unexpected_error", [
+            { name: "Message ID", value: message.id },
+            { name: "Channel ID", value: message.channelId },
+            { name: "Error", value: error.message }
+        ]);
+
         throw error;
     }
 
@@ -50,7 +78,11 @@ const reply = async (message, content, autoDelete = false) => {
                 await msg.delete();
             } catch (error) {
                 if (error.code !== 10008) {
-                    console.error('[AUTODELETE] Unexpected error when deleting message:', error);
+                    await logError("autodelete_failed", [
+                        { name: "Message ID", value: msg.id },
+                        { name: "Channel ID", value: msg.channelId },
+                        { name: "Error", value: error.message }
+                    ]);
                 }
             }
         }, 15000);

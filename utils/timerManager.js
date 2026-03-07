@@ -5,33 +5,31 @@ const { getGuildChannel } = require('./messageUtils');
 
 const timeoutMap = new Map();
 
-// Convert embed-like structure to clean text for your logger
+// Format fields for clean text logs
 function formatFields(fields) {
-    return fields.map(f => `• **${f.name}:** ${f.value}`).join("\n");
+    return fields.map(f => `• ${f.name}: ${f.value}`).join("\n");
 }
 
-async function sendErrorEmbed(title, fields = []) {
+async function sendErrorLog(title, fields = []) {
     const text =
-        `❌ **${title}**\n` +
-        `${formatFields(fields)}\n` +
-        `⏱️ ${new Date().toISOString()}`;
+        `❌ ${title}\n${formatFields(fields)}\n⏱️ ${new Date().toISOString()}`;
 
+    console.error(text); // ← affichage console
     await sendError(text);
 }
 
-async function sendLogEmbed(title, fields = []) {
+async function sendInfoLog(title, fields = []) {
     const text =
-        `📘 **${title}**\n` +
-        `${formatFields(fields)}\n` +
-        `⏱️ ${new Date().toISOString()}`;
+        `📘 ${title}\n${formatFields(fields)}\n⏱️ ${new Date().toISOString()}`;
 
+    console.log(text); // ← affichage console
     await sendLog(text);
 }
 
 const setTimer = async (client, reminderData) => {
     try {
         if (timeoutMap.size >= 1000) {
-            await sendErrorEmbed("TimerManager Warning", [
+            await sendErrorLog("TimerManager Warning", [
                 { name: "Active Timeouts", value: `${timeoutMap.size}` }
             ]);
         }
@@ -46,7 +44,7 @@ const setTimer = async (client, reminderData) => {
         return reminder;
 
     } catch (error) {
-        await sendErrorEmbed("Error Creating Timer", [
+        await sendErrorLog("Error Creating Timer", [
             { name: "Error", value: error.message }
         ]);
         throw error;
@@ -64,7 +62,7 @@ const deleteTimer = async (reminderId) => {
         }
 
     } catch (error) {
-        await sendErrorEmbed("Error Deleting Timer", [
+        await sendErrorLog("Error Deleting Timer", [
             { name: "Reminder ID", value: reminderId.toString() },
             { name: "Error", value: error.message }
         ]);
@@ -77,7 +75,7 @@ const scheduleNotification = (client, reminder) => {
     const delay = remindAt - Date.now();
 
     if (isNaN(remindAt)) {
-        sendErrorEmbed("Invalid remindAt Timestamp", [
+        sendErrorLog("Invalid remindAt Timestamp", [
             { name: "Reminder ID", value: id }
         ]);
         return;
@@ -85,7 +83,7 @@ const scheduleNotification = (client, reminder) => {
 
     if (delay <= 0) {
         triggerNotification(client, id).catch(err => {
-            sendErrorEmbed("Immediate Trigger Failed", [
+            sendErrorLog("Immediate Trigger Failed", [
                 { name: "Reminder ID", value: id },
                 { name: "Error", value: err.message }
             ]);
@@ -99,7 +97,7 @@ const scheduleNotification = (client, reminder) => {
 
     const timeoutId = setTimeout(() => {
         triggerNotification(client, id).catch(err => {
-            sendErrorEmbed("Scheduled Trigger Failed", [
+            sendErrorLog("Scheduled Trigger Failed", [
                 { name: "Reminder ID", value: id },
                 { name: "Error", value: err.message }
             ]);
@@ -127,21 +125,21 @@ const triggerNotification = async (client, reminderId) => {
                 if (channel) {
                     await channel.send(reminder.reminderMessage);
 
-                    await sendLogEmbed("Reminder Sent", [
+                    await sendInfoLog("Reminder Sent", [
                         { name: "Type", value: reminder.type },
                         { name: "User", value: `<@${reminder.userId}>` },
                         { name: "Channel", value: `<#${reminder.channelId}>` }
                     ]);
 
                 } else {
-                    await sendErrorEmbed("Channel Not Found", [
+                    await sendErrorLog("Channel Not Found", [
                         { name: "Reminder ID", value: id },
                         { name: "Channel ID", value: reminder.channelId }
                     ]);
                 }
 
             } catch (err) {
-                await sendErrorEmbed("Failed to Send Reminder", [
+                await sendErrorLog("Failed to Send Reminder", [
                     { name: "Channel ID", value: reminder.channelId },
                     { name: "Error", value: err.message }
                 ]);
@@ -151,7 +149,7 @@ const triggerNotification = async (client, reminderId) => {
         await Reminder.findByIdAndDelete(id);
 
     } catch (error) {
-        await sendErrorEmbed("Error Triggering Notification", [
+        await sendErrorLog("Error Triggering Notification", [
             { name: "Reminder ID", value: id },
             { name: "Error", value: error.message }
         ]);
@@ -162,7 +160,11 @@ const initTimerManager = async (client) => {
     try {
         const pending = await Reminder.find({}).lean();
 
-        await sendLogEmbed("TimerManager Initialized", [
+        // LOG CONSOLE
+        console.log(`[TimerManager] Loaded ${pending.length} pending reminders.`);
+
+        // LOG WEBHOOK
+        await sendInfoLog("TimerManager Initialized", [
             { name: "Pending Reminders", value: `${pending.length}` }
         ]);
 
@@ -171,7 +173,7 @@ const initTimerManager = async (client) => {
         }
 
     } catch (error) {
-        await sendErrorEmbed("Error Initializing TimerManager", [
+        await sendErrorLog("Error Initializing TimerManager", [
             { name: "Error", value: error.message }
         ]);
     }

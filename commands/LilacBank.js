@@ -32,19 +32,22 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    // Prevent "Unknown interaction"
+    await interaction.deferReply({ ephemeral: true });
+
     const guildId = interaction.guildId;
     const userId = interaction.user.id;
 
     // Permissions
     if (!ALLOWED_GUILDS.includes(guildId))
-      return interaction.reply({ content: '❌ This server cannot use Lilac Bank.', ephemeral: true });
+      return interaction.editReply({ content: '❌ This server cannot use Lilac Bank.' });
 
     if (!ALLOWED_USERS.includes(userId))
-      return interaction.reply({ content: '❌ You are not allowed to use this command.', ephemeral: true });
+      return interaction.editReply({ content: '❌ You are not allowed to use this command.' });
 
     const sub = interaction.options.getSubcommand();
 
-    // Fetch or create vault
+    // Fetch or create vault (safe against duplicates)
     let bank = await LilacBank.findOne({ guildId });
     if (!bank) {
       bank = await LilacBank.create({
@@ -65,7 +68,7 @@ module.exports = {
         )
         .setFooter({ text: 'Lilac Bank System' });
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.editReply({ embeds: [embed] });
     }
 
     // -------------------------
@@ -76,10 +79,10 @@ module.exports = {
       const amount = interaction.options.getInteger('amount');
 
       if (amount <= 0)
-        return interaction.reply({ content: '❌ Deposit amount must be greater than 0.', ephemeral: true });
+        return interaction.editReply({ content: '❌ Deposit amount must be greater than 0.' });
 
       if (wallet < amount)
-        return interaction.reply({ content: '❌ You cannot deposit more than your wallet.', ephemeral: true });
+        return interaction.editReply({ content: '❌ You cannot deposit more than your wallet.' });
 
       const previousVault = bank.cores;
       const remaining = wallet - amount;
@@ -108,7 +111,7 @@ module.exports = {
         )
         .setFooter({ text: 'Lilac Bank System' });
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.editReply({ embeds: [embed] });
     }
 
     // -------------------------
@@ -133,7 +136,7 @@ module.exports = {
         )
         .setFooter({ text: 'Lilac Bank System' });
 
-      return interaction.reply({ embeds: [embed] });
+      return interaction.editReply({ embeds: [embed] });
     }
   }
 };

@@ -15,7 +15,7 @@ function formatFields(fields) {
     return fields.map(f => `${f.name} : ${f.value}`).join("\n");
 }
 
-// Log normal
+// LOG NORMAL
 async function logAction(title, fields = []) {
     const text =
         `💠 ${title}\n` +
@@ -27,7 +27,7 @@ async function logAction(title, fields = []) {
     await logWebhook.send(text);
 }
 
-// Log erreur
+// LOG ERREUR
 async function logError(title, fields = []) {
     const text =
         `❌ ${title}\n` +

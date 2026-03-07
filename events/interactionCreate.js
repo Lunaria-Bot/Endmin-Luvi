@@ -7,36 +7,39 @@ const {
 
 const Reminder = require("../models/Reminder");
 const { setTimer } = require("../utils/timerManager");
-const { sendLog, sendError } = require("../utils/logger");
+const { logAction, logError } = require("../utils/logger");
 
 module.exports = {
     name: Events.InteractionCreate,
 
     async execute(interaction, client) {
 
-        // Log only slash commands & buttons
-        if (interaction.isChatInputCommand() || interaction.isButton()) {
-            console.log(
-                `[INTERACTION] User: ${interaction.user?.id} | ${interaction.commandName || interaction.customId}`
-            );
-        }
-
         try {
             // ============================
             // SLASH COMMANDS
             // ============================
             if (interaction.isChatInputCommand()) {
+
                 const command = client.commands.get(interaction.commandName);
                 if (!command) return;
 
-                console.log(`[CMD] Running ${interaction.commandName}`);
+                // 💠 LOG : Command executed
+                await logAction(interaction.commandName, [
+                    { name: "User", value: `<@${interaction.user.id}>` },
+                    { name: "Server", value: `${interaction.guild.name} (${interaction.guild.id})` }
+                ]);
 
                 try {
                     await command.execute(interaction);
-                    console.log(`[CMD] ${interaction.commandName} completed`);
+
                 } catch (error) {
-                    console.error(`[CMD ERROR] ${interaction.commandName}:`, error);
-                    await sendError(`[CMD ERROR] ${interaction.commandName}: ${error.message}`);
+
+                    // ❌ LOG : Command error
+                    await logError("command_failed", [
+                        { name: "Command", value: interaction.commandName },
+                        { name: "User", value: `<@${interaction.user.id}>` },
+                        { name: "Error", value: error.message }
+                    ]);
 
                     // Safe reply
                     if (!interaction.replied && !interaction.deferred) {
@@ -58,7 +61,12 @@ module.exports = {
             if (interaction.isButton()) {
                 const { customId, user, channel, message } = interaction;
 
-                console.log(`[BUTTON] ${customId} clicked by ${user.id}`);
+                // 💠 LOG : Button click
+                await logAction("button_click", [
+                    { name: "Button", value: customId },
+                    { name: "User", value: `<@${user.id}>` },
+                    { name: "Channel", value: `<#${channel.id}>` }
+                ]);
 
                 // ----------------------------
                 // STAMINA BUTTONS
@@ -115,10 +123,6 @@ module.exports = {
 
                         await interaction.editReply({ content: confirmationMessage });
 
-                        await sendLog(
-                            `[STAMINA REMINDER SET] User: ${user.id}, Percentage: ${percentage}%, Channel: ${channel.id}`
-                        );
-
                         // Disable buttons
                         const disabledRow = new ActionRowBuilder().addComponents(
                             new ButtonBuilder()
@@ -141,8 +145,13 @@ module.exports = {
                         await message.edit({ components: [disabledRow] });
 
                     } catch (error) {
-                        console.error(`[ERROR] Failed to create stamina reminder: ${error.message}`);
-                        await sendError(`[ERROR] Failed to create stamina reminder: ${error.message}`);
+
+                        // ❌ LOG : Stamina reminder failed
+                        await logError("stamina_reminder_failed", [
+                            { name: "User", value: `<@${user.id}>` },
+                            { name: "Channel", value: `<#${channel.id}>` },
+                            { name: "Error", value: error.message }
+                        ]);
 
                         try {
                             await interaction.editReply({
@@ -156,8 +165,12 @@ module.exports = {
             }
 
         } catch (fatal) {
-            console.error(`[FATAL] interactionCreate:`, fatal);
-            await sendError(`[FATAL] interactionCreate: ${fatal.message}`);
+
+            // ❌ LOG : Fatal interaction error
+            await logError("interaction_fatal", [
+                { name: "Error", value: fatal.message },
+                { name: "Stack", value: fatal.stack?.slice(0, 500) || "No stack" }
+            ]);
         }
     }
 };

@@ -2,14 +2,36 @@ const Reminder = require('../models/Reminder');
 const { getUserSettings } = require('./userSettingsManager');
 const { sendLog, sendError } = require('./logger');
 const { getGuildChannel } = require('./messageUtils');
+const { EmbedBuilder } = require('discord.js');
 
 const timeoutMap = new Map();
+
+const sendErrorEmbed = async (title, fields = []) => {
+    const embed = new EmbedBuilder()
+        .setTitle(`❌ ${title}`)
+        .setColor('#ff4d6d')
+        .addFields(fields)
+        .setTimestamp();
+
+    await sendError({ embeds: [embed] });
+};
+
+const sendLogEmbed = async (title, fields = []) => {
+    const embed = new EmbedBuilder()
+        .setTitle(`📘 ${title}`)
+        .setColor('#6d28d9')
+        .addFields(fields)
+        .setTimestamp();
+
+    await sendLog({ embeds: [embed] });
+};
 
 const setTimer = async (client, reminderData) => {
     try {
         if (timeoutMap.size >= 1000) {
-            console.warn(`[WARN] TimerManager has ${timeoutMap.size} active timeouts.`);
-            await sendError(`[WARN] TimerManager has ${timeoutMap.size} active timeouts.`);
+            await sendErrorEmbed("TimerManager Warning", [
+                { name: "Active Timeouts", value: `${timeoutMap.size}` }
+            ]);
         }
 
         const reminder = await Reminder.findOneAndUpdate(
@@ -20,9 +42,11 @@ const setTimer = async (client, reminderData) => {
 
         scheduleNotification(client, reminder);
         return reminder;
+
     } catch (error) {
-        console.error('[TimerManager] Error creating timer:', error);
-        await sendError(`[ERROR] [TimerManager] Error creating timer: ${error.message}`);
+        await sendErrorEmbed("Error Creating Timer", [
+            { name: "Error", value: error.message }
+        ]);
         throw error;
     }
 };
@@ -36,9 +60,12 @@ const deleteTimer = async (reminderId) => {
             clearTimeout(timeoutMap.get(id));
             timeoutMap.delete(id);
         }
+
     } catch (error) {
-        console.error(`[TimerManager] Error deleting timer ${reminderId}:`, error);
-        await sendError(`[ERROR] [TimerManager] Error deleting timer ${reminderId}: ${error.message}`);
+        await sendErrorEmbed("Error Deleting Timer", [
+            { name: "Reminder ID", value: reminderId.toString() },
+            { name: "Error", value: error.message }
+        ]);
     }
 };
 
@@ -48,13 +75,18 @@ const scheduleNotification = (client, reminder) => {
     const delay = remindAt - Date.now();
 
     if (isNaN(remindAt)) {
-        console.error(`[TimerManager] Invalid remindAt for reminder ${id}`);
+        sendErrorEmbed("Invalid remindAt Timestamp", [
+            { name: "Reminder ID", value: id }
+        ]);
         return;
     }
 
     if (delay <= 0) {
         triggerNotification(client, id).catch(err => {
-            console.error(`[TimerManager] Immediate trigger failed for ${id}:`, err);
+            sendErrorEmbed("Immediate Trigger Failed", [
+                { name: "Reminder ID", value: id },
+                { name: "Error", value: err.message }
+            ]);
         });
         return;
     }
@@ -65,7 +97,10 @@ const scheduleNotification = (client, reminder) => {
 
     const timeoutId = setTimeout(() => {
         triggerNotification(client, id).catch(err => {
-            console.error(`[TimerManager] Scheduled trigger failed for ${id}:`, err);
+            sendErrorEmbed("Scheduled Trigger Failed", [
+                { name: "Reminder ID", value: id },
+                { name: "Error", value: err.message }
+            ]);
         });
     }, delay);
 
@@ -86,38 +121,57 @@ const triggerNotification = async (client, reminderId) => {
         if (sendReminder) {
             try {
                 const channel = await getGuildChannel(client, reminder.channelId);
+
                 if (channel) {
                     await channel.send(reminder.reminderMessage);
-                    await sendLog(`[REMINDER SENT] Type: ${reminder.type}, User: ${reminder.userId}, Channel: ${reminder.channelId}`);
+
+                    await sendLogEmbed("Reminder Sent", [
+                        { name: "Type", value: reminder.type },
+                        { name: "User", value: `<@${reminder.userId}>` },
+                        { name: "Channel", value: `<#${reminder.channelId}>` }
+                    ]);
+
                 } else {
-                    console.error(`[TimerManager] Channel not found for reminder ${id}`);
-                    await sendError(`[ERROR] [TimerManager] Channel not found for reminder ${id}`);
+                    await sendErrorEmbed("Channel Not Found", [
+                        { name: "Reminder ID", value: id },
+                        { name: "Channel ID", value: reminder.channelId }
+                    ]);
                 }
+
             } catch (err) {
-                console.error(`[TimerManager] Failed to send to channel ${reminder.channelId}:`, err);
-                await sendError(`[ERROR] [TimerManager] Failed to send to channel ${reminder.channelId}: ${err.message}`);
+                await sendErrorEmbed("Failed to Send Reminder", [
+                    { name: "Channel ID", value: reminder.channelId },
+                    { name: "Error", value: err.message }
+                ]);
             }
         }
 
         await Reminder.findByIdAndDelete(id);
 
     } catch (error) {
-        console.error(`[TimerManager] Error triggering notification for ${id}:`, error);
-        await sendError(`[ERROR] [TimerManager] Error triggering notification for ${id}: ${error.message}`);
+        await sendErrorEmbed("Error Triggering Notification", [
+            { name: "Reminder ID", value: id },
+            { name: "Error", value: error.message }
+        ]);
     }
 };
 
 const initTimerManager = async (client) => {
     try {
         const pending = await Reminder.find({}).lean();
-        console.log(`[TimerManager] Loaded ${pending.length} pending reminders.`);
+
+        await sendLogEmbed("TimerManager Initialized", [
+            { name: "Pending Reminders", value: `${pending.length}` }
+        ]);
 
         for (const reminder of pending) {
             scheduleNotification(client, reminder);
         }
+
     } catch (error) {
-        console.error('[TimerManager] Error initializing:', error);
-        await sendError(`[ERROR] [TimerManager] Error initializing: ${error.message}`);
+        await sendErrorEmbed("Error Initializing TimerManager", [
+            { name: "Error", value: error.message }
+        ]);
     }
 };
 

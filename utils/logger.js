@@ -1,42 +1,45 @@
-const fs = require('fs').promises; // Use promises version of fs
-const path = require('path');
-const { WebhookClient } = require('discord.js');
+const { WebhookClient } = require("discord.js");
 
-const logFilePath = path.join(__dirname, '..', 'logs', 'bot.log'); // Path to logs/bot.log
-const errorWebhook = process.env.ERROR_WEBHOOK_URL ? new WebhookClient({ url: process.env.ERROR_WEBHOOK_URL }) : null;
+// 🔴 Webhook erreurs
+const errorWebhook = new WebhookClient({
+    url: "https://discord.com/api/webhooks/1479797810189828263/yvygJV_KEkJVBz-BIrwZCrn2selxfMOJGk7Spzjbzop0EWISvR-jmm_Ju-o7leWvOI1G"
+});
 
-// Function to ensure the log directory exists
-async function ensureLogDirectory() {
-  const logDir = path.dirname(logFilePath);
-  try {
-    await fs.mkdir(logDir, { recursive: true });
-  } catch (err) {
-    console.error('Failed to create log directory:', err);
-  }
+// 🔵 Webhook logs normaux
+const logWebhook = new WebhookClient({
+    url: "https://discord.com/api/webhooks/1479876808575946854/LzYxGKj3Dy8vXNx95y0dclssuwbCovVcxq94lfnM4LMMnfM-E5Wrc1yJNrddW358-nSx"
+});
+
+// Formatage premium
+function formatFields(fields) {
+    return fields.map(f => `${f.name} : ${f.value}`).join("\n");
 }
 
-// Ensure directory on startup
-ensureLogDirectory();
+// Log normal
+async function logAction(title, fields = []) {
+    const text =
+        `💠 ${title}\n` +
+        `────────────────────────\n` +
+        `${formatFields(fields)}\n` +
+        `────────────────────────`;
 
-async function sendLog(message) {
-  try {
-    const timestamp = new Date().toISOString();
-    await fs.appendFile(logFilePath, `[${timestamp}] ${message}\n`);
-  } catch (error) {
-    console.error('Failed to write log message to file:', error);
-  }
+    console.log(text);
+    await logWebhook.send(text);
 }
 
-async function sendError(message) {
-  if (!errorWebhook) {
-    console.error('ERROR_WEBHOOK_URL is not set. Failed to send error message to webhook.');
-    return;
-  }
-  try {
-    await errorWebhook.send(message);
-  } catch (error) {
-    console.error('Failed to send error message to webhook:', error);
-  }
+// Log erreur
+async function logError(title, fields = []) {
+    const text =
+        `❌ ${title}\n` +
+        `────────────────────────\n` +
+        `${formatFields(fields)}\n` +
+        `────────────────────────`;
+
+    console.error(text);
+    await errorWebhook.send(text);
 }
 
-module.exports = { sendLog, sendError };
+module.exports = {
+    logAction,
+    logError
+};

@@ -216,7 +216,7 @@ async function processMessage(message, oldMessage = null) {
             userId,
             guildId: message.guild.id,
             channelId: message.channel.id,
-            remindAt: new Date(Date.now() + 2 * 60 * 1000),
+            remindAt: new Date(Date.now() + 1800000),
             type: 'raid_spawn',
             reminderMessage: `<@${userId}>, your </raid spawn:1472170030723764364> cooldown is up!`,
           });

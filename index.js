@@ -21,7 +21,7 @@ const WebSocket = require("ws");
 const { initTimerManager } = require("./utils/timerManager");
 const { initializeSettings } = require("./utils/settingsManager");
 const { initializeUserSettings } = require("./utils/userSettingsManager");
-const { sendError } = require("./utils/logger");
+const { logError } = require("./utils/logger"); // ✅ FIXED
 
 const {
   processInventoryMessage,
@@ -48,12 +48,19 @@ module.exports.setMaintenanceState = (state, reason = null) => {
 // -----------------------------
 process.on("unhandledRejection", async (reason, promise) => {
   console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
-  await sendError(`[CRITICAL] Unhandled Rejection: ${reason?.message || reason}`);
+
+  await logError("unhandled_rejection", [
+    { name: "Reason", value: String(reason) }
+  ]);
 });
 
 process.on("uncaughtException", async (error) => {
   console.error("[CRITICAL] Uncaught Exception:", error);
-  await sendError(`[CRITICAL] Uncaught Exception: ${error.message}`);
+
+  await logError("uncaught_exception", [
+    { name: "Error", value: error.message },
+    { name: "Stack", value: error.stack?.slice(0, 500) || "No stack" }
+  ]);
 });
 
 // -----------------------------
@@ -181,12 +188,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 });
 
 // -----------------------------
-// ⚠️ INTERACTION HANDLER SUPPRIMÉ ICI
-// -----------------------------
-// (Il doublait celui dans /events/interactionCreate.js)
-
-// -----------------------------
-// WEBSOCKET SERVER (ALWAYS ON)
+// WEBSOCKET SERVER
 // -----------------------------
 const startTime = Date.now();
 

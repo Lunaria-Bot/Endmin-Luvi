@@ -1,18 +1,26 @@
 const UserNotificationSettings = require('../models/UserNotificationSettings');
-const { sendLog, sendError } = require('./logger');
+const { logAction, logError } = require('./logger');
 
 const userSettingsCache = new Map();
 
 async function initializeUserSettings() {
   try {
     const allUserSettings = await UserNotificationSettings.find().lean();
+
     for (const settings of allUserSettings) {
       userSettingsCache.set(settings.userId, settings);
     }
-    await sendLog(`[INFO] Cached notification settings for ${userSettingsCache.size} users.`);
+
+    await logAction("user_settings_cache_initialized", [
+      { name: "Users Cached", value: `${userSettingsCache.size}` }
+    ]);
+
   } catch (error) {
     console.error(`[ERROR] Failed to initialize user settings cache: ${error.message}`, error);
-    await sendError(`[ERROR] Failed to initialize user settings cache: ${error.message}`);
+
+    await logError("user_settings_cache_failed", [
+      { name: "Error", value: error.message }
+    ]);
   }
 }
 
@@ -29,12 +37,22 @@ async function updateUserSettings(userId, newSettings) {
     );
 
     userSettingsCache.set(userId, updated);
-    await sendLog(`[INFO] User settings updated for user ${userId}`);
+
+    await logAction("user_settings_updated", [
+      { name: "User", value: `<@${userId}>` },
+      { name: "Updated Keys", value: Object.keys(newSettings).join(", ") || "None" }
+    ]);
 
     return updated;
+
   } catch (error) {
     console.error(`[ERROR] Failed to update user settings for user ${userId}: ${error.message}`, error);
-    await sendError(`[ERROR] Failed to update user settings for user ${userId}: ${error.message}`);
+
+    await logError("user_settings_update_failed", [
+      { name: "User", value: `<@${userId}>` },
+      { name: "Error", value: error.message }
+    ]);
+
     return null;
   }
 }

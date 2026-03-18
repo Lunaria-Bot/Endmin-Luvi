@@ -32,111 +32,133 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    // Prevent "Unknown interaction"
+
+    // Always defer first
     await interaction.deferReply({ ephemeral: true });
 
-    const guildId = interaction.guildId;
-    const userId = interaction.user.id;
+    try {
+      const guildId = interaction.guildId;
+      const userId = interaction.user.id;
 
-    // Permissions
-    if (!ALLOWED_GUILDS.includes(guildId))
-      return interaction.editReply({ content: '❌ This server cannot use Lilac Bank.' });
+      // Permissions
+      if (!ALLOWED_GUILDS.includes(guildId))
+        return interaction.editReply({ content: '❌ This server cannot use Lilac Bank.' });
 
-    if (!ALLOWED_USERS.includes(userId))
-      return interaction.editReply({ content: '❌ You are not allowed to use this command.' });
+      if (!ALLOWED_USERS.includes(userId))
+        return interaction.editReply({ content: '❌ You are not allowed to use this command.' });
 
-    const sub = interaction.options.getSubcommand();
+      const sub = interaction.options.getSubcommand();
 
-    // Fetch or create vault (safe against duplicates)
-    let bank = await LilacBank.findOne({ guildId });
-    if (!bank) {
-      bank = await LilacBank.create({
-        guildId,
-        cores: 0
-      });
-    }
+      // Fetch or create vault
+      let bank = await LilacBank.findOne({ guildId });
+      if (!bank) {
+        bank = await LilacBank.create({
+          guildId,
+          cores: 0
+        });
+      }
 
-    // -------------------------
-    // VIEW
-    // -------------------------
-    if (sub === 'view') {
-      const embed = new EmbedBuilder()
-        .setTitle('🌸 Lilac Guild Vault')
-        .setColor('#d18aff')
-        .addFields(
-          { name: '<:LU_Core:1479467733199360060> Cores', value: `${bank.cores}`, inline: true }
-        )
-        .setFooter({ text: 'Lilac Bank System' });
+      // -------------------------
+      // VIEW
+      // -------------------------
+      if (sub === 'view') {
+        const embed = new EmbedBuilder()
+          .setTitle('🌸 Lilac Guild Vault')
+          .setColor('#d18aff')
+          .addFields(
+            { name: '<:LU_Core:1479467733199360060> Cores', value: `${bank.cores}`, inline: true }
+          )
+          .setFooter({ text: 'Lilac Bank System' });
 
-      return interaction.editReply({ embeds: [embed] });
-    }
+        return interaction.editReply({ embeds: [embed] });
+      }
 
-    // -------------------------
-    // DEPOSIT
-    // -------------------------
-    if (sub === 'deposit') {
-      const wallet = interaction.options.getInteger('wallet');
-      const amount = interaction.options.getInteger('amount');
+      // -------------------------
+      // DEPOSIT
+      // -------------------------
+      if (sub === 'deposit') {
+        const wallet = interaction.options.getInteger('wallet');
+        const amount = interaction.options.getInteger('amount');
 
-      if (amount <= 0)
-        return interaction.editReply({ content: '❌ Deposit amount must be greater than 0.' });
+        if (amount <= 0)
+          return interaction.editReply({ content: '❌ Deposit amount must be greater than 0.' });
 
-      if (wallet < amount)
-        return interaction.editReply({ content: '❌ You cannot deposit more than your wallet.' });
+        if (wallet < amount)
+          return interaction.editReply({ content: '❌ You cannot deposit more than your wallet.' });
 
-      const previousVault = bank.cores;
-      const remaining = wallet - amount;
+        const previousVault = bank.cores;
+        const remaining = wallet - amount;
 
-      // Update vault
-      bank.cores += amount;
-      await bank.save();
+        // Update vault
+        bank.cores += amount;
+        await bank.save();
 
-      const embed = new EmbedBuilder()
-        .setTitle('🌸 Lilac Bank Deposit')
-        .setColor('#a855f7')
-        .addFields(
-          {
-            name: '💼 Your Wallet',
-            value:
-              `• Before: **${wallet} <:LU_Core:1479467733199360060>**\n` +
-              `• Deposited: **${amount} <:LU_Core:1479467733199360060>**\n` +
-              `• Remaining: **${remaining} <:LU_Core:1479467733199360060>**`
-          },
-          {
-            name: '🏛️ Guild Vault',
-            value:
-              `• Previous Total: **${previousVault} <:LU_Core:1479467733199360060>**\n` +
-              `• New Total: **${bank.cores} <:LU_Core:1479467733199360060>**`
-          }
-        )
-        .setFooter({ text: 'Lilac Bank System' });
+        const embed = new EmbedBuilder()
+          .setTitle('🌸 Lilac Bank Deposit')
+          .setColor('#a855f7')
+          .addFields(
+            {
+              name: '💼 Your Wallet',
+              value:
+                `• Before: **${wallet} <:LU_Core:1479467733199360060>**\n` +
+                `• Deposited: **${amount} <:LU_Core:1479467733199360060>**\n` +
+                `• Remaining: **${remaining} <:LU_Core:1479467733199360060>**`
+            },
+            {
+              name: '🏛️ Guild Vault',
+              value:
+                `• Previous Total: **${previousVault} <:LU_Core:1479467733199360060>**\n` +
+                `• New Total: **${bank.cores} <:LU_Core:1479467733199360060>**`
+            }
+          )
+          .setFooter({ text: 'Lilac Bank System' });
 
-      return interaction.editReply({ embeds: [embed] });
-    }
+        return interaction.editReply({ embeds: [embed] });
+      }
 
-    // -------------------------
-    // RESET
-    // -------------------------
-    if (sub === 'reset') {
-      const previous = bank.cores;
+      // -------------------------
+      // RESET
+      // -------------------------
+      if (sub === 'reset') {
+        const previous = bank.cores;
 
-      bank.cores = 0;
-      await bank.save();
+        bank.cores = 0;
+        await bank.save();
 
-      const embed = new EmbedBuilder()
-        .setTitle('🌸 Lilac Bank Reset')
-        .setColor('#ff4d6d')
-        .addFields(
-          {
-            name: '🏛️ Guild Vault',
-            value:
-              `• Previous Total: **${previous} <:LU_Core:1479467733199360060>**\n` +
-              `• New Total: **0 <:LU_Core:1479467733199360060>**`
-          }
-        )
-        .setFooter({ text: 'Lilac Bank System' });
+        const embed = new EmbedBuilder()
+          .setTitle('🌸 Lilac Bank Reset')
+          .setColor('#ff4d6d')
+          .addFields(
+            {
+              name: '🏛️ Guild Vault',
+              value:
+                `• Previous Total: **${previous} <:LU_Core:1479467733199360060>**\n` +
+                `• New Total: **0 <:LU_Core:1479467733199360060>**`
+            }
+          )
+          .setFooter({ text: 'Lilac Bank System' });
 
-      return interaction.editReply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
+      }
+
+    } catch (err) {
+
+      // SAFE ERROR HANDLING
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({
+            content: "❌ An unexpected error occurred.",
+            ephemeral: true
+          });
+        } else {
+          await interaction.followUp({
+            content: "❌ An unexpected error occurred.",
+            ephemeral: true
+          });
+        }
+      } catch {}
+
+      throw err; // Let your logger catch it
     }
   }
 };

@@ -114,26 +114,30 @@ const triggerNotification = async (client, reminderId) => {
             try {
                 const channel = await getGuildChannel(client, reminder.channelId);
 
-                if (channel) {
-                    await channel.send(reminder.reminderMessage);
-
-                    // 🔵 LOG : Reminder Ended
-                    await logAction("reminder_end", [
-                        { name: "User", value: `<@${reminder.userId}>` },
-                        { name: "Started at", value: reminder.createdAt },
-                        { name: "Ended at", value: new Date().toISOString() },
-                        { name: "In", value: `<#${reminder.channelId}>` }
-                    ]);
-
-                } else {
-                    await logError("Channel Not Found", [
+                // 🧹 AUTO‑CLEAN : Channel inaccessible
+                if (!channel) {
+                    await logError("channel_fetch_failed", [
                         { name: "Reminder ID", value: id },
-                        { name: "Channel ID", value: reminder.channelId }
+                        { name: "Channel ID", value: reminder.channelId },
+                        { name: "Error", value: "Missing Access or Channel Deleted" }
                     ]);
+
+                    await Reminder.findByIdAndDelete(id);
+                    return;
                 }
 
+                // Send reminder
+                await channel.send(reminder.reminderMessage);
+
+                // 🔵 LOG : Reminder Ended
+                await logAction("reminder_end", [
+                    { name: "User", value: `<@${reminder.userId}>` },
+                    { name: "Started at", value: reminder.createdAt },
+                    { name: "Ended at", value: new Date().toISOString() },
+                    { name: "In", value: `<#${reminder.channelId}>` }
+                ]);
+
             } catch (err) {
-                // 🔴 LOG : Reminder Failed
                 await logError("reminder_failed", [
                     { name: "User", value: `<@${reminder.userId}>` },
                     { name: "Channel", value: `<#${reminder.channelId}>` },

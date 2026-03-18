@@ -38,7 +38,8 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    // Restrict usage to owner only
+
+    // Owner check BEFORE defer
     if (interaction.user.id !== OWNER_ID) {
       return interaction.reply({
         content: "⛔ This command is only available to the bot owner.",
@@ -46,76 +47,93 @@ module.exports = {
       });
     }
 
-    // Prevent "Unknown interaction"
+    // Safe defer
     await interaction.deferReply({ ephemeral: true });
 
-    const sub = interaction.options.getSubcommand();
-    const client = interaction.client;
+    try {
+      const sub = interaction.options.getSubcommand();
+      const client = interaction.client;
 
-    // -----------------------------
-    // /admin-servers list
-    // -----------------------------
-    if (sub === "list") {
-      const guilds = client.guilds.cache;
+      // -----------------------------
+      // /admin-servers list
+      // -----------------------------
+      if (sub === "list") {
+        const guilds = client.guilds.cache;
 
-      const embed = new EmbedBuilder()
-        .setTitle("📋 Bot Server List")
-        .setColor("#d8b4fe")
-        .setDescription(
-          guilds.map(g => `• **${g.name}** — \`${g.id}\``).join("\n")
-        )
-        .setFooter({ text: `Total servers: ${guilds.size}` })
-        .setTimestamp();
+        const embed = new EmbedBuilder()
+          .setTitle("📋 Bot Server List")
+          .setColor("#d8b4fe")
+          .setDescription(
+            guilds.map(g => `• **${g.name}** — \`${g.id}\``).join("\n")
+          )
+          .setFooter({ text: `Total servers: ${guilds.size}` })
+          .setTimestamp();
 
-      return interaction.editReply({
-        embeds: [embed]
-      });
-    }
-
-    // -----------------------------
-    // /admin-servers info
-    // -----------------------------
-    if (sub === "info") {
-      const serverId = interaction.options.getString("server_id");
-      const guild = client.guilds.cache.get(serverId);
-
-      if (!guild) {
-        return interaction.editReply("❌ The bot is not in this server.");
+        return interaction.editReply({ embeds: [embed] });
       }
 
-      const embed = new EmbedBuilder()
-        .setTitle(`📌 Server Info: ${guild.name}`)
-        .setColor("#d8b4fe")
-        .addFields(
-          { name: "🆔 Server ID", value: guild.id, inline: true },
-          { name: "👑 Owner", value: `<@${guild.ownerId}>`, inline: true },
-          { name: "👥 Members", value: `${guild.memberCount}`, inline: true },
-          { name: "📅 Created", value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>` }
-        )
-        .setThumbnail(guild.iconURL({ size: 1024 }))
-        .setTimestamp();
+      // -----------------------------
+      // /admin-servers info
+      // -----------------------------
+      if (sub === "info") {
+        const serverId = interaction.options.getString("server_id");
+        const guild = client.guilds.cache.get(serverId);
 
-      return interaction.editReply({
-        embeds: [embed]
-      });
-    }
+        if (!guild) {
+          return interaction.editReply("❌ The bot is not in this server.");
+        }
 
-    // -----------------------------
-    // /admin-servers leave
-    // -----------------------------
-    if (sub === "leave") {
-      const serverId = interaction.options.getString("server_id");
-      const guild = client.guilds.cache.get(serverId);
+        const embed = new EmbedBuilder()
+          .setTitle(`📌 Server Info: ${guild.name}`)
+          .setColor("#d8b4fe")
+          .addFields(
+            { name: "🆔 Server ID", value: guild.id, inline: true },
+            { name: "👑 Owner", value: `<@${guild.ownerId}>`, inline: true },
+            { name: "👥 Members", value: `${guild.memberCount}`, inline: true },
+            { name: "📅 Created", value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>` }
+          )
+          .setThumbnail(guild.iconURL({ size: 1024 }))
+          .setTimestamp();
 
-      if (!guild) {
-        return interaction.editReply("❌ The bot is not in this server.");
+        return interaction.editReply({ embeds: [embed] });
       }
 
-      await guild.leave();
+      // -----------------------------
+      // /admin-servers leave
+      // -----------------------------
+      if (sub === "leave") {
+        const serverId = interaction.options.getString("server_id");
+        const guild = client.guilds.cache.get(serverId);
 
-      return interaction.editReply(
-        `✅ Successfully left **${guild.name}** (\`${guild.id}\`)`
-      );
+        if (!guild) {
+          return interaction.editReply("❌ The bot is not in this server.");
+        }
+
+        await guild.leave();
+
+        return interaction.editReply(
+          `✅ Successfully left **${guild.name}** (\`${guild.id}\`)`
+        );
+      }
+
+    } catch (err) {
+
+      // SAFE ERROR HANDLING
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({
+            content: "❌ An unexpected error occurred.",
+            ephemeral: true
+          });
+        } else {
+          await interaction.followUp({
+            content: "❌ An unexpected error occurred.",
+            ephemeral: true
+          });
+        }
+      } catch {}
+
+      throw err; // ton logger premium va capturer l’erreur
     }
   }
 };

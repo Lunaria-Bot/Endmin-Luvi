@@ -1,4 +1,4 @@
-const { WebhookClient } = require("discord.js");
+const { WebhookClient, EmbedBuilder } = require("discord.js");
 
 // 🔴 Webhook erreurs
 const errorWebhook = new WebhookClient({
@@ -12,31 +12,45 @@ const logWebhook = new WebhookClient({
 
 // Formatage premium
 function formatFields(fields) {
-    return fields.map(f => `${f.name} : ${f.value}`).join("\n");
+    return fields.map(f => ({
+        name: f.name,
+        value: f.value,
+        inline: false
+    }));
 }
 
-// LOG NORMAL
+// LOG NORMAL (embed premium)
 async function logAction(title, fields = []) {
-    const text =
-        `💠 ${title}\n` +
-        `────────────────────────\n` +
-        `${formatFields(fields)}\n` +
-        `────────────────────────`;
+    const embed = new EmbedBuilder()
+        .setTitle(`💠 ${title}`)
+        .setColor("#6C63FF") // Violet SaaS premium
+        .addFields(formatFields(fields))
+        .setFooter({ text: "Endmin System Log — OK" })
+        .setTimestamp();
 
-    console.log(text);
-    await logWebhook.send(text);
+    console.log(`[LOG] ${title}`);
+
+    await logWebhook.send({
+        embeds: [embed],
+        allowed_mentions: { parse: [] }
+    });
 }
 
-// LOG ERREUR
+// LOG ERREUR (embed premium)
 async function logError(title, fields = []) {
-    const text =
-        `❌ ${title}\n` +
-        `────────────────────────\n` +
-        `${formatFields(fields)}\n` +
-        `────────────────────────`;
+    const embed = new EmbedBuilder()
+        .setTitle(`❌ ${title}`)
+        .setColor("#FF4D4D") // Rouge SaaS premium
+        .addFields(formatFields(fields))
+        .setFooter({ text: "Endmin System Log — ERROR" })
+        .setTimestamp();
 
-    console.error(text);
-    await errorWebhook.send(text);
+    console.error(`[ERROR] ${title}`);
+
+    await errorWebhook.send({
+        embeds: [embed],
+        allowed_mentions: { parse: [] }
+    });
 }
 
 module.exports = {

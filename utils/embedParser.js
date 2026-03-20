@@ -1,62 +1,46 @@
-// ─────────────────────────────────────────────────────────────
-// Parse a "Raid Spawned!" embed.
-//
-// Real Luvi format (observed):
-//   title:       "Raid Spawned!"
-//   description: "You spawned 🏅 A2 [Elite T3] ⚡"
-//                                ^^^^^^^^^^^^^^^^ ← boss + tier inside brackets
-//
-// Tier is extracted from the bracket tag:
-//   [Elite T3]  → tier = "Tier 3",  tierLabel = "Elite T3"
-//   [T2]        → tier = "Tier 2",  tierLabel = "T2"
-//   [Tier 1]    → tier = "Tier 1",  tierLabel = "Tier 1"
-// ─────────────────────────────────────────────────────────────
-
-function _extractBossAndTier(text) {
-  if (!text) return null;
-
-  // Match anything inside [...] that contains a tier reference
-  // e.g. "A2 [Elite T3]", "Dragon [T2]", "Fenrir [Tier 1]"
-  const match = text.match(/(.+?)\s*\[([^\]]+)\]/);
-  if (!match) return null;
-
-  const bossName  = match[1].replace(/[^\w\s\-']/gu, '').trim(); // strip emojis/symbols
-  const tierLabel = match[2].trim();
-
-  // Extract tier number from label
-  const tierNum = tierLabel.match(/(\d+)/);
-  if (!tierNum) return null;
-
-  const tier = `Tier ${tierNum[1]}`;
-  return { bossName, tier, tierLabel };
-}
-
+/**
+ * parseBossEmbed — Detects a world boss spawn.
+ * Title format:  "<:LU_Monster:ID> Goblin Slayer"
+ * Tier format:   field value contains "<:LU_TierN:ID>"
+ */
 function parseBossEmbed(embed) {
   if (!embed?.title) return null;
+  if (!/<:LU_Monster:\d+>/.test(embed.title)) return null;
 
-  // Must be a "Raid Spawned!" message
-  if (!/raid spawned/i.test(embed.title)) return null;
+  const bossName = embed.title.replace(/<:[^>]+>\s*/g, '').trim();
+  if (!bossName) return null;
 
-  const desc = embed.description || '';
-  return _extractBossAndTier(desc);
+  let tier = null;
+  for (const field of embed.fields ?? []) {
+    const match = field.value.match(/<:LU_Tier(\d+):\d+>/);
+    if (match) { tier = `Tier ${match[1]}`; break; }
+  }
+
+  return tier ? { bossName, tier } : null;
 }
 
+/**
+ * parseBossComponent — Same but for component-based boss spawn messages.
+ */
 function parseBossComponent(components) {
   if (!components?.length) return null;
   const root = components[0];
   if (root.type !== 17) return null;
 
-  for (const comp of root.components ?? []) {
-    if (comp.type !== 10) continue;
+  let bossName = null;
+  let tier     = null;
 
-    // Look for the component that contains the spawn description
-    if (/you spawned/i.test(comp.content) || /\[.*T\d+.*\]/i.test(comp.content)) {
-      const result = _extractBossAndTier(comp.content);
-      if (result) return result;
+  for (const comp of root.components ?? []) {
+    if (comp.type === 10) {
+      if (comp.id === 2) bossName = comp.content.replace(/\*\*/g, '').trim();
+      if (comp.id === 3) {
+        const match = comp.content.match(/<:LU_Tier(\d+):\d+>/);
+        if (match) tier = `Tier ${match[1]}`;
+      }
     }
   }
 
-  return null;
+  return bossName && tier ? { bossName, tier } : null;
 }
 
 function parseExpeditionEmbed(embed) {

@@ -3,210 +3,367 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Endmin — Bot Status</title>
+<title>Endmin — Luvi Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:       #0f0f13;
-    --surface:  #16161d;
-    --card:     #1c1c26;
-    --border:   rgba(255,255,255,0.07);
-    --text:     #e8e8f0;
-    --muted:    #6b6b80;
-    --accent:   #C8A2C8;
-    --green:    #57F287;
-    --red:      #ED4245;
-    --blue:     #5865F2;
-    --yellow:   #FEE75C;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+:root {
+  --bg: #08080f;
+  --surface: #0e0e18;
+  --card: #12121e;
+  --card2: #16162a;
+  --border: rgba(200,162,200,0.1);
+  --text: #f0eeff;
+  --muted: #6b6b90;
+  --accent: #C8A2C8;
+  --accent2: #9b6b9b;
+  --green: #57F287;
+  --red: #ED4245;
+  --blue: #5865F2;
+  --yellow: #FEE75C;
+  --glow: rgba(200,162,200,0.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
 
-  /* NAV */
-  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
-  .nav-brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
-  .nav-brand span { color: var(--accent); }
-  .nav-links { display: flex; gap: 24px; }
-  .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
-  .nav-links a:hover, .nav-links a.active { color: var(--text); }
-  .admin-link { background: var(--accent); color: #1a001a !important; padding: 7px 16px; border-radius: 8px; font-weight: 600; font-size: 13px !important; }
+/* CANVAS */
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5}
 
-  /* HERO */
-  .hero { text-align: center; padding: 80px 32px 48px; }
-  .hero h1 { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 12px; }
-  .hero h1 span { color: var(--accent); }
-  .hero p { color: var(--muted); font-size: 17px; max-width: 480px; margin: 0 auto 32px; line-height: 1.6; }
-  .status-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); padding: 8px 20px; border-radius: 99px; font-size: 14px; font-weight: 500; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
-  .dot.offline { background: var(--red); animation: none; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 40px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);background:rgba(8,8,15,.8);border-bottom:1px solid var(--border)}
+.nav-logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800;letter-spacing:-0.5px}
+.nav-logo .sword{font-size:20px}
+.nav-logo span{background:linear-gradient(135deg,#C8A2C8,#9b6bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links{display:flex;gap:8px;align-items:center}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:14px;font-weight:500;padding:7px 14px;border-radius:8px;transition:all .2s}
+.nav-links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nav-links a.active{color:var(--text)}
+.btn-admin{background:linear-gradient(135deg,#C8A2C8,#9b6bff)!important;color:#1a001a!important;font-weight:700!important;border-radius:10px!important}
 
-  /* STATS GRID */
-  .section { max-width: 900px; margin: 0 auto; padding: 0 32px 64px; }
-  .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 16px; }
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 40px; }
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-  .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
-  .stat-value.green { color: var(--green); }
-  .stat-value.accent { color: var(--accent); }
-  .stat-value.blue  { color: var(--blue); }
+/* HERO */
+.hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(200,162,200,.08);border:1px solid rgba(200,162,200,.2);padding:8px 18px;border-radius:99px;font-size:13px;font-weight:500;color:var(--accent);margin-bottom:32px}
+.dot-pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(87,242,135,.4)}50%{opacity:.7;box-shadow:0 0 0 6px rgba(87,242,135,0)}}
+.hero h1{font-size:clamp(42px,8vw,80px);font-weight:900;letter-spacing:-3px;line-height:1;margin-bottom:24px}
+.hero h1 .line1{display:block;color:var(--text)}
+.hero h1 .line2{display:block;background:linear-gradient(135deg,#C8A2C8 0%,#9b6bff 50%,#6b8fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-desc{font-size:18px;color:var(--muted);max-width:500px;line-height:1.7;margin-bottom:48px}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.btn{padding:13px 28px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:all .2s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,#C8A2C8,#9b6bff);color:#1a001a}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(200,162,200,.3)}
+.btn-ghost{background:rgba(255,255,255,.05);color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:rgba(255,255,255,.08);transform:translateY(-2px)}
+.hero-stats{display:flex;gap:48px;margin-top:80px;flex-wrap:wrap;justify-content:center}
+.hero-stat{text-align:center}
+.hero-stat-value{font-size:32px;font-weight:800;letter-spacing:-1px;background:linear-gradient(135deg,#C8A2C8,#9b6bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-stat-label{font-size:13px;color:var(--muted);margin-top:4px;font-weight:500}
 
-  /* ACTIVITY CHART */
-  .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 40px; }
-  .chart-title { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
-  .bars { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
-  .bar { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; opacity: 0.6; min-height: 4px; transition: opacity .2s; position: relative; }
-  .bar:hover { opacity: 1; }
-  .bar-labels { display: flex; gap: 4px; margin-top: 6px; }
-  .bar-label { flex: 1; text-align: center; font-size: 10px; color: var(--muted); }
+/* SECTIONS */
+.section{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:80px 24px}
+.section-header{text-align:center;margin-bottom:56px}
+.section-tag{display:inline-block;background:rgba(200,162,200,.08);border:1px solid rgba(200,162,200,.15);color:var(--accent);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 16px;border-radius:99px;margin-bottom:16px}
+.section-title{font-size:clamp(28px,4vw,42px);font-weight:800;letter-spacing:-1.5px;margin-bottom:12px}
+.section-sub{font-size:16px;color:var(--muted);max-width:500px;margin:0 auto;line-height:1.6}
 
-  /* COMMANDS */
-  .commands-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 40px; }
-  .cmd-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-  .cmd-name { font-size: 14px; font-weight: 600; font-family: 'Consolas', monospace; color: var(--accent); margin-bottom: 4px; }
-  .cmd-name::before { content: '/'; opacity: 0.5; }
-  .cmd-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
-  .cmd-cat { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; padding: 2px 7px; border-radius: 4px; margin-bottom: 6px; }
-  .cat-user  { background: rgba(88,101,242,.2); color: #8b9aff; }
-  .cat-info  { background: rgba(87,242,135,.15); color: #57F287; }
-  .cat-luvi  { background: rgba(200,162,200,.15); color: var(--accent); }
-  .cat-guild { background: rgba(254,231,92,.15); color: var(--yellow); }
-  .cat-admin { background: rgba(237,66,69,.15); color: var(--red); }
-  .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .tab { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all .2s; }
-  .tab.active, .tab:hover { border-color: var(--accent); color: var(--accent); }
+/* STATS CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.stat-card:hover{transform:translateY(-4px);border-color:rgba(200,162,200,.3)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .2s}
+.stat-card:hover::before{opacity:1}
+.stat-icon{font-size:24px;margin-bottom:16px;display:block}
+.stat-value{font-size:32px;font-weight:800;letter-spacing:-1px;margin-bottom:4px}
+.stat-label{font-size:13px;color:var(--muted);font-weight:500}
+.val-green{color:var(--green)}.val-accent{background:linear-gradient(135deg,#C8A2C8,#9b6bff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.val-blue{color:var(--blue)}
 
-  /* CHANGELOG */
-  .changelog-list { display: flex; flex-direction: column; gap: 16px; }
-  .changelog-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; }
-  .changelog-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .version-tag { background: rgba(200,162,200,.15); color: var(--accent); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-family: monospace; }
-  .changelog-title { font-size: 16px; font-weight: 600; }
-  .changelog-date { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
-  .changelog-desc { font-size: 14px; color: var(--muted); margin-bottom: 12px; line-height: 1.6; }
-  .entry-group { margin-bottom: 10px; }
-  .entry-type { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
-  .type-new     { color: var(--green); }
-  .type-fix     { color: #60cdff; }
-  .type-improve { color: var(--yellow); }
-  .type-remove  { color: var(--red); }
-  .entry-item { font-size: 13px; color: var(--muted); padding: 2px 0 2px 14px; position: relative; line-height: 1.5; }
-  .entry-item::before { content: '•'; position: absolute; left: 0; color: var(--border); }
+/* CHART */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;margin-top:16px}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.chart-head h3{font-size:15px;font-weight:600}
+.chart-head span{font-size:12px;color:var(--muted)}
+.bars{display:flex;align-items:flex-end;gap:4px;height:100px}
+.bar{flex:1;border-radius:4px 4px 0 0;min-height:4px;background:linear-gradient(to top,#9b6bff,#C8A2C8);opacity:.5;transition:opacity .2s;cursor:pointer}
+.bar:hover{opacity:1}
+.bar-labels{display:flex;gap:4px;margin-top:8px}
+.bar-label{flex:1;text-align:center;font-size:9px;color:var(--muted)}
 
-  /* FOOTER */
-  footer { text-align: center; padding: 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+/* FEATURES */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.feature-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;transition:all .2s;position:relative;overflow:hidden}
+.feature-card:hover{border-color:rgba(200,162,200,.3);transform:translateY(-4px)}
+.feature-icon{width:48px;height:48px;border-radius:12px;background:rgba(200,162,200,.1);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:20px}
+.feature-title{font-size:17px;font-weight:700;margin-bottom:8px}
+.feature-desc{font-size:14px;color:var(--muted);line-height:1.6}
+.feature-tag{display:inline-block;margin-top:16px;font-size:11px;font-weight:600;color:var(--accent);background:rgba(200,162,200,.08);padding:3px 10px;border-radius:99px}
+
+/* COMMANDS */
+.filter-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+.tab{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:8px 18px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.tab.active,.tab:hover{border-color:var(--accent);color:var(--accent);background:rgba(200,162,200,.06)}
+.cmds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.cmd-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;transition:all .2s}
+.cmd-card:hover{border-color:rgba(200,162,200,.25);transform:translateY(-2px)}
+.cmd-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:5px;display:inline-block;margin-bottom:8px}
+.cat-user{background:rgba(88,101,242,.15);color:#8b9aff}
+.cat-info{background:rgba(87,242,135,.12);color:#57F287}
+.cat-luvi{background:rgba(200,162,200,.12);color:#C8A2C8}
+.cat-guild{background:rgba(254,231,92,.12);color:#FEE75C}
+.cat-admin{background:rgba(237,66,69,.12);color:#ED4245}
+.cmd-name{font-size:15px;font-weight:700;font-family:'Courier New',monospace;color:var(--accent);margin-bottom:5px}
+.cmd-name::before{content:'/';opacity:.4}
+.cmd-desc{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* CHANGELOG */
+.cl-list{display:flex;flex-direction:column;gap:16px}
+.cl-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;position:relative;overflow:hidden;transition:border-color .2s}
+.cl-card:hover{border-color:rgba(200,162,200,.25)}
+.cl-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(to bottom,#C8A2C8,#9b6bff)}
+.cl-header{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.vtag{background:rgba(200,162,200,.1);border:1px solid rgba(200,162,200,.2);color:var(--accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:6px;font-family:monospace}
+.cl-title{font-size:18px;font-weight:700}
+.cl-date{font-size:12px;color:var(--muted);margin-bottom:16px}
+.cl-desc{font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.6}
+.entry-group{margin-bottom:12px}
+.entry-type{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.t-new{color:#57F287}.t-fix{color:#60cdff}.t-improve{color:#FEE75C}.t-remove{color:#ED4245}
+.entry-item{font-size:13px;color:var(--muted);padding:3px 0 3px 14px;position:relative;line-height:1.5}
+.entry-item::before{content:'→';position:absolute;left:0;color:rgba(255,255,255,.2);font-size:11px}
+
+/* FOOTER */
+footer{position:relative;z-index:1;text-align:center;padding:40px 24px;border-top:1px solid var(--border);color:var(--muted);font-size:13px}
+footer span{color:var(--accent)}
+
+/* SCROLL ANIMATION */
+.fade-in{opacity:0;transform:translateY(30px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+/* SEPARATOR */
+.sep{width:1px;height:32px;background:var(--border);margin:0 16px}
 </style>
 </head>
 <body>
 
+<canvas id="bg-canvas"></canvas>
+
 <nav>
-  <div class="nav-brand">⚔️ <span>Endmin</span></div>
+  <div class="nav-logo"><span class="sword">⚔️</span> <span>Endmin</span></div>
   <div class="nav-links">
     <a href="#status" class="active">Status</a>
+    <a href="#features">Features</a>
     <a href="#commands">Commands</a>
     <a href="#changelog">Changelog</a>
-    <a href="/admin" class="admin-link">Admin →</a>
+    <div class="sep"></div>
+    <a href="/admin" class="btn-admin">Admin Panel →</a>
   </div>
 </nav>
 
 <!-- HERO -->
-<div class="hero">
-  <h1>Meet <span>Endmin</span></h1>
-  <p>Your Luvi companion bot — reminders, raid wishlist, boss pings and more.</p>
-  <div class="status-badge">
-    <div class="dot" id="status-dot"></div>
-    <span id="status-text">Checking…</span>
+<section class="hero">
+  <div class="hero-badge"><div class="dot-pulse"></div><span id="hero-status">Checking status…</span></div>
+  <h1><span class="line1">Your Luvi</span><span class="line2">Companion Bot</span></h1>
+  <p class="hero-desc">Reminders, raid wishlist, boss pings, and more — Endmin keeps your Luvi experience smooth.</p>
+  <div class="hero-btns">
+    <a href="#features" class="btn btn-primary">✨ Discover Features</a>
+    <a href="#commands" class="btn btn-ghost">📖 View Commands</a>
   </div>
-</div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-value" id="h-ping">—</div><div class="hero-stat-label">Ping</div></div>
+    <div class="hero-stat"><div class="hero-stat-value" id="h-guilds">—</div><div class="hero-stat-label">Servers</div></div>
+    <div class="hero-stat"><div class="hero-stat-value" id="h-uptime">—</div><div class="hero-stat-label">Uptime</div></div>
+    <div class="hero-stat"><div class="hero-stat-value" id="h-cmds">—</div><div class="hero-stat-label">Commands Run</div></div>
+  </div>
+</section>
 
-<!-- STATS -->
-<div class="section" id="status">
-  <div class="section-title">Live stats</div>
+<!-- STATUS -->
+<div class="section fade-in" id="status">
+  <div class="section-header">
+    <div class="section-tag">Live Monitoring</div>
+    <h2 class="section-title">Real-time Status</h2>
+    <p class="section-sub">Live metrics updated every 30 seconds.</p>
+  </div>
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-label">Ping</div><div class="stat-value green" id="s-ping">—</div></div>
-    <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value accent" id="s-uptime">—</div></div>
-    <div class="stat-card"><div class="stat-label">Servers</div><div class="stat-value blue" id="s-guilds">—</div></div>
-    <div class="stat-card"><div class="stat-label">RAM Used</div><div class="stat-value" id="s-ram">—</div></div>
-    <div class="stat-card"><div class="stat-label">Commands run</div><div class="stat-value accent" id="s-cmds">—</div></div>
-    <div class="stat-card"><div class="stat-label">Database</div><div class="stat-value" id="s-db">—</div></div>
+    <div class="stat-card"><span class="stat-icon">🏓</span><div class="stat-value val-green" id="s-ping">—</div><div class="stat-label">Latency</div></div>
+    <div class="stat-card"><span class="stat-icon">⏱️</span><div class="stat-value val-accent" id="s-uptime">—</div><div class="stat-label">Uptime</div></div>
+    <div class="stat-card"><span class="stat-icon">🌍</span><div class="stat-value val-blue" id="s-guilds">—</div><div class="stat-label">Servers</div></div>
+    <div class="stat-card"><span class="stat-icon">💾</span><div class="stat-value" id="s-ram">—</div><div class="stat-label">RAM Used</div></div>
+    <div class="stat-card"><span class="stat-icon">⌨️</span><div class="stat-value val-accent" id="s-cmds">—</div><div class="stat-label">Commands Run</div></div>
+    <div class="stat-card"><span class="stat-icon">🗄️</span><div class="stat-value" id="s-db" style="font-size:18px">—</div><div class="stat-label">Database</div></div>
   </div>
-
-  <!-- Activity chart -->
-  <div class="chart-wrap">
-    <div class="chart-title">Activity (last 24h)</div>
+  <div class="chart-card">
+    <div class="chart-head"><h3>Activity — last 24h</h3><span id="chart-total">— events</span></div>
     <div class="bars" id="chart-bars"></div>
     <div class="bar-labels" id="chart-labels"></div>
   </div>
 </div>
 
+<!-- FEATURES -->
+<div class="section fade-in" id="features">
+  <div class="section-header">
+    <div class="section-tag">What Endmin Does</div>
+    <h2 class="section-title">Packed with Features</h2>
+    <p class="section-sub">Everything you need to enhance your Luvi experience.</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">⏱️</div>
+      <div class="feature-title">Smart Reminders</div>
+      <div class="feature-desc">Never miss a stamina refill, expedition claim, raid fatigue, or card drop again. Endmin tracks them all automatically.</div>
+      <div class="feature-tag">Automatic</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎯</div>
+      <div class="feature-title">Raid Wishlist</div>
+      <div class="feature-desc">Add raid bosses to your wishlist and get a DM the moment they spawn — even if you're AFK.</div>
+      <div class="feature-tag">New Feature</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚔️</div>
+      <div class="feature-title">Boss Tier Pings</div>
+      <div class="feature-desc">Automatically pings the right role when a T1, T2 or T3 boss spawns in your server.</div>
+      <div class="feature-tag">Real-time</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔔</div>
+      <div class="feature-title">Custom Notifications</div>
+      <div class="feature-desc">Each user can fully customise which notifications they receive with a single command.</div>
+      <div class="feature-tag">Personalised</div>
+    </div>
+  </div>
+</div>
+
 <!-- COMMANDS -->
-<div class="section" id="commands">
-  <div class="section-title">Commands</div>
+<div class="section fade-in" id="commands">
+  <div class="section-header">
+    <div class="section-tag">All Commands</div>
+    <h2 class="section-title">What Can You Do?</h2>
+    <p class="section-sub">Filter by category to find exactly what you need.</p>
+  </div>
   <div class="filter-tabs" id="filter-tabs">
     <div class="tab active" data-cat="all">All</div>
     <div class="tab" data-cat="user">User</div>
     <div class="tab" data-cat="info">Info</div>
     <div class="tab" data-cat="luvi">Luvi</div>
-    <div class="tab" data-cat="guild">Guild</div>
-    <div class="tab" data-cat="admin">Admin</div>
   </div>
-  <div class="commands-grid" id="commands-grid"></div>
+  <div class="cmds-grid" id="cmds-grid"></div>
 </div>
 
 <!-- CHANGELOG -->
-<div class="section" id="changelog">
-  <div class="section-title">Changelog</div>
-  <div class="changelog-list" id="changelog-list">
-    <div style="color:var(--muted);font-size:14px">Loading…</div>
+<div class="section fade-in" id="changelog">
+  <div class="section-header">
+    <div class="section-tag">What's New</div>
+    <h2 class="section-title">Changelog</h2>
+    <p class="section-sub">Stay up to date with the latest updates and improvements.</p>
   </div>
+  <div class="cl-list" id="cl-list"><div style="color:var(--muted);text-align:center;padding:40px">Loading…</div></div>
 </div>
 
-<footer>Endmin Bot — Made with ❤️ for Lilac</footer>
+<footer>Made with ❤️ for <span>Lilac</span> — Endmin Bot</footer>
 
 <script>
 const API = '/api';
-let allCommands = [];
+let allCmds = [];
 
-// ── Uptime formatter ──
+// ── Particles background ──────────────────────────
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function createParticles() {
+  particles = [];
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.5 + 0.3,
+      dx: (Math.random() - 0.5) * 0.3,
+      dy: (Math.random() - 0.5) * 0.3,
+      alpha: Math.random() * 0.4 + 0.1,
+    });
+  }
+}
+
+function drawParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (const p of particles) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200,162,200,${p.alpha})`;
+    ctx.fill();
+    p.x += p.dx; p.y += p.dy;
+    if (p.x < 0 || p.x > canvas.width)  p.dx *= -1;
+    if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
+  }
+  requestAnimationFrame(drawParticles);
+}
+
+resizeCanvas(); createParticles(); drawParticles();
+window.addEventListener('resize', () => { resizeCanvas(); createParticles(); });
+
+// ── Scroll animations ─────────────────────────────
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// ── Helpers ───────────────────────────────────────
 function fmtUptime(s) {
-  const d = Math.floor(s / 86400);
-  s %= 86400;
-  const h = Math.floor(s / 3600);
-  s %= 3600;
-  const m = Math.floor(s / 60);
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
   return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-// ── Status ──
+// ── Status ────────────────────────────────────────
 async function loadStatus() {
   try {
     const d = await fetch(`${API}/status`).then(r => r.json());
-    document.getElementById('status-dot').className  = 'dot' + (d.online ? '' : ' offline');
-    document.getElementById('status-text').textContent = d.online
-      ? (d.maintenance ? '⚠️ Maintenance' : '✅ Online')
-      : '❌ Offline';
-    if (!d.online) return;
-    document.getElementById('s-ping').textContent   = `${d.ping}ms`;
-    document.getElementById('s-uptime').textContent = fmtUptime(d.uptime);
-    document.getElementById('s-guilds').textContent = d.guilds;
-    document.getElementById('s-ram').textContent    = `${d.heapUsed}MB`;
-    document.getElementById('s-cmds').textContent   = d.commandCount;
-    document.getElementById('s-db').textContent     = d.dbState === 1 ? '🟢 Connected' : '🔴 Error';
-    renderChart(d.activity);
-  } catch { document.getElementById('status-text').textContent = '❌ Offline'; }
+    const online = d.online && !d.maintenance;
+
+    document.getElementById('hero-status').textContent = d.online
+      ? (d.maintenance ? '⚠️ Maintenance mode' : '✅ Online and operational')
+      : '❌ Currently offline';
+
+    document.getElementById('h-ping').textContent   = d.online ? `${d.ping}ms`        : '—';
+    document.getElementById('h-guilds').textContent = d.online ? d.guilds              : '—';
+    document.getElementById('h-uptime').textContent = d.online ? fmtUptime(d.uptime)  : '—';
+    document.getElementById('h-cmds').textContent   = d.online ? d.commandCount        : '—';
+
+    document.getElementById('s-ping').textContent   = d.online ? `${d.ping}ms`        : '—';
+    document.getElementById('s-uptime').textContent = d.online ? fmtUptime(d.uptime)  : '—';
+    document.getElementById('s-guilds').textContent = d.online ? d.guilds              : '—';
+    document.getElementById('s-ram').textContent    = d.online ? `${d.heapUsed}MB`    : '—';
+    document.getElementById('s-cmds').textContent   = d.online ? d.commandCount        : '—';
+    document.getElementById('s-db').textContent     = d.online
+      ? (d.dbState === 1 ? '🟢 Connected' : '🔴 Error')
+      : '—';
+
+    renderChart(d.activity || []);
+  } catch {
+    document.getElementById('hero-status').textContent = '❌ Currently offline';
+  }
 }
 
-// ── Activity chart ──
+// ── Chart ─────────────────────────────────────────
 function renderChart(activity) {
   const bars   = document.getElementById('chart-bars');
   const labels = document.getElementById('chart-labels');
+  const total  = document.getElementById('chart-total');
   bars.innerHTML = labels.innerHTML = '';
-  if (!activity?.length) return;
-  const max = Math.max(...activity.map(a => a.count), 1);
+  if (!activity.length) return;
+  const max  = Math.max(...activity.map(a => a.count), 1);
+  const sum  = activity.reduce((a, b) => a + b.count, 0);
+  total.textContent = `${sum} events today`;
   for (const { hour, count } of activity) {
     const b = document.createElement('div');
     b.className = 'bar';
-    b.style.height = `${Math.max((count / max) * 80, 4)}px`;
+    b.style.height  = `${Math.max((count / max) * 100, 4)}px`;
     b.title = `${hour}:00 — ${count} events`;
     bars.appendChild(b);
     const l = document.createElement('div');
@@ -216,62 +373,81 @@ function renderChart(activity) {
   }
 }
 
-// ── Commands ──
+// ── Commands ──────────────────────────────────────
 async function loadCommands() {
-  allCommands = await fetch(`${API}/commands`).then(r => r.json());
-  renderCommands('all');
+  const raw = await fetch(`${API}/commands`).then(r => r.json());
+  // Hide guild-only and admin commands from the public panel
+  allCmds = raw.filter(c => c.category !== 'guild' && c.category !== 'admin');
+  renderCmds('all');
   document.getElementById('filter-tabs').addEventListener('click', e => {
-    if (!e.target.dataset.cat) return;
+    const cat = e.target.dataset.cat;
+    if (!cat) return;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     e.target.classList.add('active');
-    renderCommands(e.target.dataset.cat);
+    renderCmds(cat);
   });
 }
 
-function renderCommands(cat) {
-  const grid = document.getElementById('commands-grid');
-  const list = cat === 'all' ? allCommands : allCommands.filter(c => c.category === cat);
-  grid.innerHTML = list.map(c => `
+function renderCmds(cat) {
+  const list = cat === 'all' ? allCmds : allCmds.filter(c => c.category === cat);
+  document.getElementById('cmds-grid').innerHTML = list.map(c => `
     <div class="cmd-card">
-      <div class="cmd-cat cat-${c.category}">${c.category}</div>
+      <div class="cmd-badge cat-${c.category}">${c.category}</div>
       <div class="cmd-name">${c.name}</div>
       <div class="cmd-desc">${c.description}</div>
     </div>`).join('');
 }
 
-// ── Changelog ──
-const TYPE_EMOJI = { new: '✨ New', fix: '🔧 Fixed', improve: '⚡ Improved', remove: '🗑️ Removed' };
+// ── Changelog ─────────────────────────────────────
+const TYPE_LABELS = { new:'✨ New', fix:'🔧 Fixed', improve:'⚡ Improved', remove:'🗑️ Removed' };
 
 async function loadChangelog() {
-  const list = document.getElementById('changelog-list');
+  const list = document.getElementById('cl-list');
   try {
     const logs = await fetch(`${API}/changelogs`).then(r => r.json());
-    if (!logs.length) { list.innerHTML = '<div style="color:var(--muted);font-size:14px">No changelogs yet.</div>'; return; }
-
+    if (!logs.length) {
+      list.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px">No changelogs yet.</div>';
+      return;
+    }
+    const grouped = {};
     list.innerHTML = logs.map(log => {
-      const grouped = {};
       for (const e of log.entries || []) {
         if (!grouped[e.type]) grouped[e.type] = [];
         grouped[e.type].push(e.content);
       }
-      const entriesHtml = Object.entries(grouped).map(([type, items]) => `
+      const entries = Object.entries(grouped).map(([type, items]) => `
         <div class="entry-group">
-          <div class="entry-type type-${type}">${TYPE_EMOJI[type] || type}</div>
+          <div class="entry-type t-${type}">${TYPE_LABELS[type] || type}</div>
           ${items.map(i => `<div class="entry-item">${i}</div>`).join('')}
         </div>`).join('');
-
-      return `<div class="changelog-card">
-        <div class="changelog-header">
-          <span class="version-tag">${log.version}</span>
-          <span class="changelog-title">${log.title}</span>
-        </div>
-        <div class="changelog-date">${new Date(log.createdAt).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})}</div>
-        ${log.description ? `<div class="changelog-desc">${log.description}</div>` : ''}
-        ${entriesHtml}
-      </div>`;
+      return `
+        <div class="cl-card">
+          <div class="cl-header">
+            <span class="vtag">${log.version}</span>
+            <span class="cl-title">${log.title}</span>
+          </div>
+          <div class="cl-date">${new Date(log.createdAt).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+          ${log.description ? `<div class="cl-desc">${log.description}</div>` : ''}
+          ${entries}
+        </div>`;
     }).join('');
-  } catch { list.innerHTML = '<div style="color:var(--muted)">Failed to load changelogs.</div>'; }
+  } catch {
+    list.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px">Failed to load.</div>';
+  }
 }
+
+// ── Nav active on scroll ──────────────────────────
+const sections = ['status','features','commands','changelog'];
+window.addEventListener('scroll', () => {
+  let current = '';
+  for (const id of sections) {
+    const el = document.getElementById(id);
+    if (el && window.scrollY >= el.offsetTop - 200) current = id;
+  }
+  document.querySelectorAll('.nav-links a[href^="#"]').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === `#${current}`);
+  });
+});
 
 loadStatus();
 loadCommands();

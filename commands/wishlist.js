@@ -36,7 +36,7 @@ module.exports = {
         .setDescription('Add a raid boss to your wishlist.')
         .addStringOption(opt =>
           opt.setName('raid')
-            .setDescription('Name of the raid boss (e.g. Kim Dokja, Rimuru…)')
+            .setDescription('Name of the raid boss (e.g. Dragon, Fenrir…)')
             .setRequired(true)
         )
     )

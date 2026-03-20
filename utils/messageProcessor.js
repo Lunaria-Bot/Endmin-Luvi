@@ -275,29 +275,36 @@ async function processBossAndCardMessage(message) {
     const settings = getSettings(message.guild.id);
     if (!settings) return;
 
-    // ── Tier boss ping (existing logic) ───────────────────────────────
-    const bossInfo = embed ? parseBossEmbed(embed) : parseBossComponent(components);
-    if (bossInfo) {
-      const tierMap = {
-        'Tier 1': settings.t1RoleId,
-        'Tier 2': settings.t2RoleId,
-        'Tier 3': settings.t3RoleId,
-      };
+    // ── Tier boss ping ─────────────────────────────────────────────────
+    // Only runs if this is NOT a "Raid Spawned!" message
+    const spawnInfo = embed
+      ? parseRaidSpawnEmbed(embed)
+      : parseRaidSpawnComponent(components);
 
-      const roleToPing = tierMap[bossInfo.tier];
+    if (!spawnInfo) {
+      const bossInfo = embed ? parseBossEmbed(embed) : parseBossComponent(components);
+      if (bossInfo) {
+        const tierMap = {
+          'Tier 1': settings.t1RoleId,
+          'Tier 2': settings.t2RoleId,
+          'Tier 3': settings.t3RoleId,
+        };
 
-      if (roleToPing) {
-        try {
-          await message.channel.send({
-            content: `<@&${roleToPing}> **${bossInfo.tier} Boss Spawned!**\nBoss: **${bossInfo.bossName}**`,
-            allowedMentions: { roles: [roleToPing] },
-          });
-        } catch (err) {
-          if (err.code === 50013 || err.code === 50001) {
-            console.warn(`[WARN] Missing permissions to send boss ping in channel ${message.channel.id}`);
-          } else {
-            console.error(`[ERROR] Failed to send boss ping: ${err.message}`, err);
-            await sendError(`[ERROR] Failed to send boss ping: ${err.message}`);
+        const roleToPing = tierMap[bossInfo.tier];
+
+        if (roleToPing) {
+          try {
+            await message.channel.send({
+              content: `<@&${roleToPing}> **${bossInfo.tier} Boss Spawned!**\nBoss: **${bossInfo.bossName}**`,
+              allowedMentions: { roles: [roleToPing] },
+            });
+          } catch (err) {
+            if (err.code === 50013 || err.code === 50001) {
+              console.warn(`[WARN] Missing permissions to send boss ping in channel ${message.channel.id}`);
+            } else {
+              console.error(`[ERROR] Failed to send boss ping: ${err.message}`, err);
+              await sendError(`[ERROR] Failed to send boss ping: ${err.message}`);
+            }
           }
         }
       }
@@ -305,10 +312,6 @@ async function processBossAndCardMessage(message) {
 
     // ── Raid spawn wishlist check ──────────────────────────────────────
     // Uses the "Raid Spawned!" embed format (e.g. "You spawned A2 [Elite T3]")
-    const spawnInfo = embed
-      ? parseRaidSpawnEmbed(embed)
-      : parseRaidSpawnComponent(components);
-
     if (spawnInfo) {
       try {
         const normalizedName = spawnInfo.bossName.trim().toLowerCase();

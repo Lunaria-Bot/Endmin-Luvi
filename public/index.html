@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Endmin — Bot Status</title>
+<style>
+  :root {
+    --bg:       #0f0f13;
+    --surface:  #16161d;
+    --card:     #1c1c26;
+    --border:   rgba(255,255,255,0.07);
+    --text:     #e8e8f0;
+    --muted:    #6b6b80;
+    --accent:   #C8A2C8;
+    --green:    #57F287;
+    --red:      #ED4245;
+    --blue:     #5865F2;
+    --yellow:   #FEE75C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* NAV */
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .nav-brand span { color: var(--accent); }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--text); }
+  .admin-link { background: var(--accent); color: #1a001a !important; padding: 7px 16px; border-radius: 8px; font-weight: 600; font-size: 13px !important; }
+
+  /* HERO */
+  .hero { text-align: center; padding: 80px 32px 48px; }
+  .hero h1 { font-size: 48px; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 12px; }
+  .hero h1 span { color: var(--accent); }
+  .hero p { color: var(--muted); font-size: 17px; max-width: 480px; margin: 0 auto 32px; line-height: 1.6; }
+  .status-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); padding: 8px 20px; border-radius: 99px; font-size: 14px; font-weight: 500; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  .dot.offline { background: var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* STATS GRID */
+  .section { max-width: 900px; margin: 0 auto; padding: 0 32px 64px; }
+  .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 16px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 40px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.blue  { color: var(--blue); }
+
+  /* ACTIVITY CHART */
+  .chart-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 40px; }
+  .chart-title { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
+  .bar { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; opacity: 0.6; min-height: 4px; transition: opacity .2s; position: relative; }
+  .bar:hover { opacity: 1; }
+  .bar-labels { display: flex; gap: 4px; margin-top: 6px; }
+  .bar-label { flex: 1; text-align: center; font-size: 10px; color: var(--muted); }
+
+  /* COMMANDS */
+  .commands-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 40px; }
+  .cmd-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .cmd-name { font-size: 14px; font-weight: 600; font-family: 'Consolas', monospace; color: var(--accent); margin-bottom: 4px; }
+  .cmd-name::before { content: '/'; opacity: 0.5; }
+  .cmd-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .cmd-cat { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; padding: 2px 7px; border-radius: 4px; margin-bottom: 6px; }
+  .cat-user  { background: rgba(88,101,242,.2); color: #8b9aff; }
+  .cat-info  { background: rgba(87,242,135,.15); color: #57F287; }
+  .cat-luvi  { background: rgba(200,162,200,.15); color: var(--accent); }
+  .cat-guild { background: rgba(254,231,92,.15); color: var(--yellow); }
+  .cat-admin { background: rgba(237,66,69,.15); color: var(--red); }
+  .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tab { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; transition: all .2s; }
+  .tab.active, .tab:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* CHANGELOG */
+  .changelog-list { display: flex; flex-direction: column; gap: 16px; }
+  .changelog-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; }
+  .changelog-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .version-tag { background: rgba(200,162,200,.15); color: var(--accent); font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; font-family: monospace; }
+  .changelog-title { font-size: 16px; font-weight: 600; }
+  .changelog-date { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .changelog-desc { font-size: 14px; color: var(--muted); margin-bottom: 12px; line-height: 1.6; }
+  .entry-group { margin-bottom: 10px; }
+  .entry-type { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+  .type-new     { color: var(--green); }
+  .type-fix     { color: #60cdff; }
+  .type-improve { color: var(--yellow); }
+  .type-remove  { color: var(--red); }
+  .entry-item { font-size: 13px; color: var(--muted); padding: 2px 0 2px 14px; position: relative; line-height: 1.5; }
+  .entry-item::before { content: '•'; position: absolute; left: 0; color: var(--border); }
+
+  /* FOOTER */
+  footer { text-align: center; padding: 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⚔️ <span>Endmin</span></div>
+  <div class="nav-links">
+    <a href="#status" class="active">Status</a>
+    <a href="#commands">Commands</a>
+    <a href="#changelog">Changelog</a>
+    <a href="/admin" class="admin-link">Admin →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Meet <span>Endmin</span></h1>
+  <p>Your Luvi companion bot — reminders, raid wishlist, boss pings and more.</p>
+  <div class="status-badge">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Checking…</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="section" id="status">
+  <div class="section-title">Live stats</div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Ping</div><div class="stat-value green" id="s-ping">—</div></div>
+    <div class="stat-card"><div class="stat-label">Uptime</div><div class="stat-value accent" id="s-uptime">—</div></div>
+    <div class="stat-card"><div class="stat-label">Servers</div><div class="stat-value blue" id="s-guilds">—</div></div>
+    <div class="stat-card"><div class="stat-label">RAM Used</div><div class="stat-value" id="s-ram">—</div></div>
+    <div class="stat-card"><div class="stat-label">Commands run</div><div class="stat-value accent" id="s-cmds">—</div></div>
+    <div class="stat-card"><div class="stat-label">Database</div><div class="stat-value" id="s-db">—</div></div>
+  </div>
+
+  <!-- Activity chart -->
+  <div class="chart-wrap">
+    <div class="chart-title">Activity (last 24h)</div>
+    <div class="bars" id="chart-bars"></div>
+    <div class="bar-labels" id="chart-labels"></div>
+  </div>
+</div>
+
+<!-- COMMANDS -->
+<div class="section" id="commands">
+  <div class="section-title">Commands</div>
+  <div class="filter-tabs" id="filter-tabs">
+    <div class="tab active" data-cat="all">All</div>
+    <div class="tab" data-cat="user">User</div>
+    <div class="tab" data-cat="info">Info</div>
+    <div class="tab" data-cat="luvi">Luvi</div>
+    <div class="tab" data-cat="guild">Guild</div>
+    <div class="tab" data-cat="admin">Admin</div>
+  </div>
+  <div class="commands-grid" id="commands-grid"></div>
+</div>
+
+<!-- CHANGELOG -->
+<div class="section" id="changelog">
+  <div class="section-title">Changelog</div>
+  <div class="changelog-list" id="changelog-list">
+    <div style="color:var(--muted);font-size:14px">Loading…</div>
+  </div>
+</div>
+
+<footer>Endmin Bot — Made with ❤️ for Lilac</footer>
+
+<script>
+const API = '/api';
+let allCommands = [];
+
+// ── Uptime formatter ──
+function fmtUptime(s) {
+  const d = Math.floor(s / 86400);
+  s %= 86400;
+  const h = Math.floor(s / 3600);
+  s %= 3600;
+  const m = Math.floor(s / 60);
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// ── Status ──
+async function loadStatus() {
+  try {
+    const d = await fetch(`${API}/status`).then(r => r.json());
+    document.getElementById('status-dot').className  = 'dot' + (d.online ? '' : ' offline');
+    document.getElementById('status-text').textContent = d.online
+      ? (d.maintenance ? '⚠️ Maintenance' : '✅ Online')
+      : '❌ Offline';
+    if (!d.online) return;
+    document.getElementById('s-ping').textContent   = `${d.ping}ms`;
+    document.getElementById('s-uptime').textContent = fmtUptime(d.uptime);
+    document.getElementById('s-guilds').textContent = d.guilds;
+    document.getElementById('s-ram').textContent    = `${d.heapUsed}MB`;
+    document.getElementById('s-cmds').textContent   = d.commandCount;
+    document.getElementById('s-db').textContent     = d.dbState === 1 ? '🟢 Connected' : '🔴 Error';
+    renderChart(d.activity);
+  } catch { document.getElementById('status-text').textContent = '❌ Offline'; }
+}
+
+// ── Activity chart ──
+function renderChart(activity) {
+  const bars   = document.getElementById('chart-bars');
+  const labels = document.getElementById('chart-labels');
+  bars.innerHTML = labels.innerHTML = '';
+  if (!activity?.length) return;
+  const max = Math.max(...activity.map(a => a.count), 1);
+  for (const { hour, count } of activity) {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.height = `${Math.max((count / max) * 80, 4)}px`;
+    b.title = `${hour}:00 — ${count} events`;
+    bars.appendChild(b);
+    const l = document.createElement('div');
+    l.className = 'bar-label';
+    l.textContent = `${hour}h`;
+    labels.appendChild(l);
+  }
+}
+
+// ── Commands ──
+async function loadCommands() {
+  allCommands = await fetch(`${API}/commands`).then(r => r.json());
+  renderCommands('all');
+  document.getElementById('filter-tabs').addEventListener('click', e => {
+    if (!e.target.dataset.cat) return;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    renderCommands(e.target.dataset.cat);
+  });
+}
+
+function renderCommands(cat) {
+  const grid = document.getElementById('commands-grid');
+  const list = cat === 'all' ? allCommands : allCommands.filter(c => c.category === cat);
+  grid.innerHTML = list.map(c => `
+    <div class="cmd-card">
+      <div class="cmd-cat cat-${c.category}">${c.category}</div>
+      <div class="cmd-name">${c.name}</div>
+      <div class="cmd-desc">${c.description}</div>
+    </div>`).join('');
+}
+
+// ── Changelog ──
+const TYPE_EMOJI = { new: '✨ New', fix: '🔧 Fixed', improve: '⚡ Improved', remove: '🗑️ Removed' };
+
+async function loadChangelog() {
+  const list = document.getElementById('changelog-list');
+  try {
+    const logs = await fetch(`${API}/changelogs`).then(r => r.json());
+    if (!logs.length) { list.innerHTML = '<div style="color:var(--muted);font-size:14px">No changelogs yet.</div>'; return; }
+
+    list.innerHTML = logs.map(log => {
+      const grouped = {};
+      for (const e of log.entries || []) {
+        if (!grouped[e.type]) grouped[e.type] = [];
+        grouped[e.type].push(e.content);
+      }
+      const entriesHtml = Object.entries(grouped).map(([type, items]) => `
+        <div class="entry-group">
+          <div class="entry-type type-${type}">${TYPE_EMOJI[type] || type}</div>
+          ${items.map(i => `<div class="entry-item">${i}</div>`).join('')}
+        </div>`).join('');
+
+      return `<div class="changelog-card">
+        <div class="changelog-header">
+          <span class="version-tag">${log.version}</span>
+          <span class="changelog-title">${log.title}</span>
+        </div>
+        <div class="changelog-date">${new Date(log.createdAt).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})}</div>
+        ${log.description ? `<div class="changelog-desc">${log.description}</div>` : ''}
+        ${entriesHtml}
+      </div>`;
+    }).join('');
+  } catch { list.innerHTML = '<div style="color:var(--muted)">Failed to load changelogs.</div>'; }
+}
+
+loadStatus();
+loadCommands();
+loadChangelog();
+setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

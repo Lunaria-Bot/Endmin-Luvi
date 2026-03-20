@@ -21,7 +21,8 @@ const WebSocket = require("ws");
 const { initTimerManager } = require("./utils/timerManager");
 const { initializeSettings } = require("./utils/settingsManager");
 const { initializeUserSettings } = require("./utils/userSettingsManager");
-const { logError } = require("./utils/logger"); // ✅ FIXED
+const { logError } = require("./utils/logger");
+const { initApi } = require("./server/api");
 
 const {
   processInventoryMessage,
@@ -237,6 +238,9 @@ setInterval(() => {
     const RaidWishlist = require("./models/RaidWishlist");
     await RaidWishlist.syncIndexes();
 
+    const Changelog = require("./models/Changelog");
+    await Changelog.syncIndexes();
+
     const worldAttack = require("./commands/worldAttack");
 
     client.once(Events.ClientReady, async (readyClient) => {
@@ -265,6 +269,10 @@ setInterval(() => {
 
       updateStatus();
       setInterval(updateStatus, 300000);
+
+      // Start web panel
+      initApi(readyClient, module.exports.getMaintenanceState);
+      console.log('[PANEL] Web panel initialized');
     });
 
     await client.login(process.env.TOKEN);

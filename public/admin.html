@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Endmin Admin</title>
+<style>
+  :root {
+    --bg:      #0f0f13;
+    --surface: #16161d;
+    --card:    #1c1c26;
+    --border:  rgba(255,255,255,0.07);
+    --text:    #e8e8f0;
+    --muted:   #6b6b80;
+    --accent:  #C8A2C8;
+    --green:   #57F287;
+    --red:     #ED4245;
+    --blue:    #5865F2;
+    --yellow:  #FEE75C;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; display: flex; min-height: 100vh; }
+
+  /* LOGIN */
+  #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .login-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 360px; text-align: center; }
+  .login-box h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .login-box p { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .login-box input { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none; }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box button { width: 100%; background: var(--accent); color: #1a001a; border: none; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .login-error { color: var(--red); font-size: 13px; margin-top: 10px; }
+
+  /* SIDEBAR */
+  aside { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 16px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+  .sidebar-brand { font-size: 16px; font-weight: 700; padding: 0 8px 20px; color: var(--accent); border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; font-size: 14px; color: var(--muted); cursor: pointer; transition: all .2s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active { background: rgba(200,162,200,.12); color: var(--accent); }
+  .nav-spacer { flex: 1; }
+  .nav-back { color: var(--muted) !important; font-size: 13px !important; }
+
+  /* MAIN */
+  main { flex: 1; padding: 32px; overflow-y: auto; max-height: 100vh; }
+  .page { display: none; }
+  .page.active { display: block; }
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+  .card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 16px; }
+
+  /* STATS GRID */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .c-green  { color: var(--green); }
+  .c-accent { color: var(--accent); }
+  .c-blue   { color: var(--blue); }
+  .c-yellow { color: var(--yellow); }
+
+  /* TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .b-green  { background: rgba(87,242,135,.15); color: var(--green); }
+  .b-blue   { background: rgba(88,101,242,.15); color: #8b9aff; }
+  .b-accent { background: rgba(200,162,200,.15); color: var(--accent); }
+  .b-yellow { background: rgba(254,231,92,.15); color: var(--yellow); }
+  .b-red    { background: rgba(237,66,69,.15); color: var(--red); }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+  input[type=text], input[type=color], textarea, select {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 14px; border-radius: 8px; font-size: 14px; outline: none; font-family: inherit;
+  }
+  input[type=text]:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  input[type=color] { height: 40px; padding: 4px; cursor: pointer; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .2s; }
+  .btn:hover { opacity: .85; }
+  .btn-primary  { background: var(--accent); color: #1a001a; }
+  .btn-green    { background: var(--green);  color: #001a08; }
+  .btn-red      { background: var(--red);    color: #fff; }
+  .btn-ghost    { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-sm       { padding: 6px 12px; font-size: 12px; }
+  .btn-row      { display: flex; gap: 10px; flex-wrap: wrap; }
+  .success-msg  { color: var(--green); font-size: 13px; margin-top: 10px; }
+  .error-msg    { color: var(--red);   font-size: 13px; margin-top: 10px; }
+
+  /* EMBED PREVIEW */
+  .embed-preview { background: #2b2d31; border-radius: 8px; padding: 16px; border-left: 4px solid #5865F2; margin-top: 16px; }
+  .embed-preview-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .embed-preview-desc  { font-size: 14px; color: #dbdee1; white-space: pre-wrap; }
+
+  /* CHANGELOG ENTRIES */
+  .entry-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .entry-row select { width: 110px; flex-shrink: 0; }
+  .entry-row input { flex: 1; }
+  .entry-row button { flex-shrink: 0; }
+  .entries-list { margin-bottom: 12px; }
+
+  /* SETTINGS */
+  .guild-block { margin-bottom: 24px; }
+  .guild-name { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>⚔️ Admin Panel</h2>
+    <p>Enter your admin key to continue</p>
+    <input type="password" id="login-input" placeholder="Admin key…" onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Sign in</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="sidebar-brand">⚔️ Endmin Admin</div>
+  <button class="nav-item active" onclick="showPage('monitoring')">📊 Monitoring</button>
+  <button class="nav-item" onclick="showPage('reminders')">⏱️ Reminders</button>
+  <button class="nav-item" onclick="showPage('embed')">📨 Send Embed</button>
+  <button class="nav-item" onclick="showPage('changelog')">📋 Changelog</button>
+  <button class="nav-item" onclick="showPage('settings')">⚙️ Settings</button>
+  <div class="nav-spacer"></div>
+  <button class="nav-item nav-back" onclick="location.href='/'">← Back to site</button>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main>
+
+  <!-- MONITORING -->
+  <div class="page active" id="page-monitoring">
+    <h2>Monitoring</h2>
+    <p class="page-sub">Live bot status and performance metrics.</p>
+    <div class="stats-grid" id="admin-stats"></div>
+    <div class="card">
+      <div class="card-title">Activity (last 24h)</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:100px" id="admin-chart"></div>
+      <div style="display:flex;gap:4px;margin-top:6px" id="admin-chart-labels"></div>
+    </div>
+  </div>
+
+  <!-- REMINDERS -->
+  <div class="page" id="page-reminders">
+    <h2>Active Reminders</h2>
+    <p class="page-sub">All pending reminders stored in the database.</p>
+    <div class="card">
+      <table>
+        <thead><tr><th>User</th><th>Type</th><th>Fires at</th><th>Channel</th></tr></thead>
+        <tbody id="reminders-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- EMBED BUILDER -->
+  <div class="page" id="page-embed">
+    <h2>Send Embed</h2>
+    <p class="page-sub">Build and send a custom embed to any channel.</p>
+    <div class="card">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Channel ID</label>
+          <input type="text" id="e-channel" placeholder="e.g. 1293611593845706793">
+        </div>
+        <div class="form-group">
+          <label>Accent color</label>
+          <input type="color" id="e-color" value="#5865F2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="e-title" placeholder="Embed title" oninput="updatePreview()">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="e-desc" placeholder="Embed description (supports markdown)" oninput="updatePreview()"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Footer text (optional)</label>
+        <input type="text" id="e-footer" placeholder="Footer text">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="sendEmbed()">Send to Discord</button>
+      </div>
+      <div id="embed-msg"></div>
+      <div class="embed-preview" id="embed-preview" style="display:none">
+        <div class="embed-preview-title" id="ep-title"></div>
+        <div class="embed-preview-desc" id="ep-desc"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGELOG -->
+  <div class="page" id="page-changelog">
+    <h2>Changelog</h2>
+    <p class="page-sub">Create and publish changelogs to the public panel and Discord.</p>
+
+    <!-- Create new -->
+    <div class="card">
+      <div class="card-title">New changelog</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Version</label>
+          <input type="text" id="cl-version" placeholder="v1.2.0">
+        </div>
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="cl-title" placeholder="What changed?">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="cl-desc" placeholder="Short summary…" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Entries</label>
+        <div class="entries-list" id="entries-list"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addEntry()">+ Add entry</button>
+      </div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" onclick="createChangelog()">Save as draft</button>
+      </div>
+      <div id="cl-msg"></div>
+    </div>
+
+    <!-- Existing changelogs -->
+    <div class="card">
+      <div class="card-title">All changelogs</div>
+      <div id="cl-list"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <h2>Server Settings</h2>
+    <p class="page-sub">Current guild configurations cached in memory.</p>
+    <div class="card" id="settings-list"></div>
+  </div>
+
+</main>
+
+<script>
+const API = '/api';
+let adminKey = '';
+const TYPE_BADGE = { new:'b-green', fix:'b-blue', improve:'b-yellow', remove:'b-red' };
+const TYPE_LABEL = { new:'✨ New', fix:'🔧 Fix', improve:'⚡ Improve', remove:'🗑️ Remove' };
+
+// ── Auth ──────────────────────────────────────────
+async function doLogin() {
+  const key = document.getElementById('login-input').value.trim();
+  const res  = await fetch(`${API}/admin/auth`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ key })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    adminKey = key;
+    document.getElementById('login-screen').style.display = 'none';
+    loadAll();
+  } else {
+    document.getElementById('login-error').textContent = 'Invalid key.';
+  }
+}
+
+function ah() { return { 'x-admin-key': adminKey, 'Content-Type': 'application/json' }; }
+
+// ── Page nav ──────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'reminders') loadReminders();
+  if (id === 'settings')  loadSettings();
+  if (id === 'changelog') loadChangelogs();
+}
+
+function loadAll() { loadMonitoring(); }
+
+// ── Monitoring ────────────────────────────────────
+async function loadMonitoring() {
+  const d = await fetch(`${API}/status`).then(r => r.json());
+  const grid = document.getElementById('admin-stats');
+  const stats = [
+    { label: 'Status',   value: d.online ? (d.maintenance ? '⚠️ Maintenance' : '🟢 Online') : '🔴 Offline', cls: '' },
+    { label: 'Ping',     value: `${d.ping}ms`,        cls: 'c-green' },
+    { label: 'Uptime',   value: fmtUptime(d.uptime),  cls: 'c-accent' },
+    { label: 'Servers',  value: d.guilds,              cls: 'c-blue' },
+    { label: 'Heap',     value: `${d.heapUsed}MB`,    cls: '' },
+    { label: 'RSS',      value: `${d.rss}MB`,         cls: '' },
+    { label: 'Commands', value: d.commandCount,        cls: 'c-yellow' },
+    { label: 'DB',       value: d.dbState === 1 ? '🟢 OK' : '🔴 Error', cls: '' },
+  ];
+  grid.innerHTML = stats.map(s => `
+    <div class="stat"><div class="stat-label">${s.label}</div>
+    <div class="stat-value ${s.cls}">${s.value ?? '—'}</div></div>`).join('');
+  renderAdminChart(d.activity || []);
+}
+
+function fmtUptime(s) {
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
+  return d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function renderAdminChart(activity) {
+  const bars = document.getElementById('admin-chart');
+  const labels = document.getElementById('admin-chart-labels');
+  bars.innerHTML = labels.innerHTML = '';
+  if (!activity.length) return;
+  const max = Math.max(...activity.map(a => a.count), 1);
+  for (const { hour, count } of activity) {
+    const b = document.createElement('div');
+    Object.assign(b.style, { flex:'1', background:'var(--accent)', borderRadius:'3px 3px 0 0',
+      height: `${Math.max((count/max)*100,4)}px`, opacity:'.6', minHeight:'4px' });
+    b.title = `${hour}:00 — ${count} events`;
+    bars.appendChild(b);
+    const l = document.createElement('div');
+    Object.assign(l.style, { flex:'1', textAlign:'center', fontSize:'10px', color:'var(--muted)' });
+    l.textContent = `${hour}h`;
+    labels.appendChild(l);
+  }
+}
+
+// ── Reminders ─────────────────────────────────────
+async function loadReminders() {
+  const data = await fetch(`${API}/admin/reminders`, { headers: ah() }).then(r => r.json());
+  const tbody = document.getElementById('reminders-table');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No active reminders.</td></tr>'; return; }
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><code style="font-size:12px;color:var(--accent)"><@${r.userId}></code></td>
+      <td><span class="badge ${TYPE_BADGE[r.type] || 'b-blue'}">${r.type}</span></td>
+      <td style="color:var(--muted);font-size:12px">${new Date(r.remindAt).toLocaleString()}</td>
+      <td style="color:var(--muted);font-size:12px">#${r.channelId}</td>
+    </tr>`).join('');
+}
+
+// ── Embed builder ─────────────────────────────────
+function updatePreview() {
+  const title = document.getElementById('e-title').value;
+  const desc  = document.getElementById('e-desc').value;
+  const color = document.getElementById('e-color').value;
+  const prev  = document.getElementById('embed-preview');
+  if (!title && !desc) { prev.style.display = 'none'; return; }
+  prev.style.display = 'block';
+  prev.style.borderLeftColor = color;
+  document.getElementById('ep-title').textContent = title;
+  document.getElementById('ep-desc').textContent  = desc;
+}
+
+async function sendEmbed() {
+  const msg = document.getElementById('embed-msg');
+  const body = {
+    channelId:   document.getElementById('e-channel').value.trim(),
+    title:       document.getElementById('e-title').value.trim(),
+    description: document.getElementById('e-desc').value.trim(),
+    color:       document.getElementById('e-color').value,
+    footer:      document.getElementById('e-footer').value.trim(),
+  };
+  if (!body.channelId || !body.title) { msg.innerHTML = '<div class="error-msg">Channel ID and title are required.</div>'; return; }
+  try {
+    const res = await fetch(`${API}/admin/send-embed`, { method:'POST', headers: ah(), body: JSON.stringify(body) });
+    const data = await res.json();
+    msg.innerHTML = data.ok
+      ? '<div class="success-msg">✅ Embed sent successfully!</div>'
+      : `<div class="error-msg">❌ ${data.error}</div>`;
+  } catch(e) { msg.innerHTML = `<div class="error-msg">❌ ${e.message}</div>`; }
+}
+
+// ── Changelog ─────────────────────────────────────
+let entryCount = 0;
+
+function addEntry(type='new', content='') {
+  const list = document.getElementById('entries-list');
+  const id = entryCount++;
+  const div = document.createElement('div');
+  div.className = 'entry-row';
+  div.id = `entry-${id}`;
+  div.innerHTML = `
+    <select id="etype-${id}">
+      <option value="new"     ${type==='new'?'selected':''}>✨ New</option>
+      <option value="fix"     ${type==='fix'?'selected':''}>🔧 Fix</option>
+      <option value="improve" ${type==='improve'?'selected':''}>⚡ Improve</option>
+      <option value="remove"  ${type==='remove'?'selected':''}>🗑️ Remove</option>
+    </select>
+    <input type="text" id="econtent-${id}" placeholder="Entry description…" value="${content}">
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('entry-${id}').remove()">✕</button>`;
+  list.appendChild(div);
+}
+
+async function createChangelog() {
+  const msg = document.getElementById('cl-msg');
+  const entries = [];
+  document.querySelectorAll('.entry-row').forEach(row => {
+    const id = row.id.split('-')[1];
+    const type    = document.getElementById(`etype-${id}`)?.value;
+    const content = document.getElementById(`econtent-${id}`)?.value?.trim();
+    if (content) entries.push({ type, content });
+  });
+
+  const body = {
+    version:     document.getElementById('cl-version').value.trim(),
+    title:       document.getElementById('cl-title').value.trim(),
+    description: document.getElementById('cl-desc').value.trim(),
+    entries,
+  };
+
+  if (!body.version || !body.title) { msg.innerHTML = '<div class="error-msg">Version and title are required.</div>'; return; }
+
+  const res  = await fetch(`${API}/admin/changelogs`, { method:'POST', headers: ah(), body: JSON.stringify(body) });
+  const data = await res.json();
+  if (data._id) {
+    msg.innerHTML = '<div class="success-msg">✅ Saved as draft!</div>';
+    document.getElementById('cl-version').value = '';
+    document.getElementById('cl-title').value   = '';
+    document.getElementById('cl-desc').value    = '';
+    document.getElementById('entries-list').innerHTML = '';
+    loadChangelogs();
+  } else {
+    msg.innerHTML = `<div class="error-msg">❌ ${data.error}</div>`;
+  }
+}
+
+async function loadChangelogs() {
+  const logs = await fetch(`${API}/admin/changelogs`, { headers: ah() }).then(r => r.json());
+  const list = document.getElementById('cl-list');
+  if (!logs.length) { list.innerHTML = '<div style="color:var(--muted);font-size:14px">No changelogs yet.</div>'; return; }
+  list.innerHTML = logs.map(log => `
+    <div style="padding:14px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span class="badge b-accent" style="font-family:monospace">${log.version}</span>
+        <span style="font-size:14px;font-weight:600">${log.title}</span>
+        <span class="badge ${log.published ? 'b-green' : 'b-yellow'}" style="margin-left:auto">
+          ${log.published ? '🌐 Published' : '✏️ Draft'}
+        </span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${log.entries?.length || 0} entries</div>
+      ${!log.published ? `
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="pub-ch-${log._id}" placeholder="Channel ID (optional)" style="width:200px;padding:6px 10px;font-size:13px">
+          <button class="btn btn-green btn-sm" onclick="publishChangelog('${log._id}')">🌐 Publish</button>
+        </div>` : ''}
+    </div>`).join('');
+}
+
+async function publishChangelog(id) {
+  const channelId = document.getElementById(`pub-ch-${id}`)?.value?.trim() || null;
+  const res  = await fetch(`${API}/admin/changelogs/${id}/publish`, {
+    method: 'POST', headers: ah(), body: JSON.stringify({ channelId })
+  });
+  const data = await res.json();
+  if (data.ok) loadChangelogs();
+}
+
+// ── Settings ──────────────────────────────────────
+async function loadSettings() {
+  const data = await fetch(`${API}/admin/settings`, { headers: ah() }).then(r => r.json());
+  const list = document.getElementById('settings-list');
+  if (!data.length) { list.innerHTML = '<div style="color:var(--muted);font-size:14px">No guild settings found.</div>'; return; }
+  list.innerHTML = data.map(s => `
+    <div class="guild-block">
+      <div class="guild-name">Guild: ${s.guildId}</div>
+      <table style="font-size:13px">
+        <tr><th>Key</th><th>Value</th></tr>
+        <tr><td>T1 Role</td><td>${s.t1RoleId || '<span style="color:var(--muted)">—</span>'}</td></tr>
+        <tr><td>T2 Role</td><td>${s.t2RoleId || '<span style="color:var(--muted)">—</span>'}</td></tr>
+        <tr><td>T3 Role</td><td>${s.t3RoleId || '<span style="color:var(--muted)">—</span>'}</td></tr>
+        <tr><td>Raid Reset Channel</td><td>${s.raidResetPingChannelId || '<span style="color:var(--muted)">—</span>'}</td></tr>
+        <tr><td>Raid Reset Role</td><td>${s.raidResetPingRoleId || '<span style="color:var(--muted)">—</span>'}</td></tr>
+      </table>
+    </div>`).join('<hr style="border:none;border-top:1px solid var(--border);margin:16px 0">');
+}
+
+// Auto-refresh monitoring
+setInterval(() => {
+  if (document.getElementById('page-monitoring').classList.contains('active')) loadMonitoring();
+}, 30000);
+</script>
+</body>
+</html>

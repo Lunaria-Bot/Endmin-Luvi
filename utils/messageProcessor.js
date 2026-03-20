@@ -70,10 +70,16 @@ async function processMessage(message, oldMessage = null) {
     const embed = message.embeds[0];
     const components = message.components;
 
-    // RAID FATIGUE
+    // RAID FATIGUE — only remind the user who ran /raid view
     const raidInfo = embed ? parseRaidViewEmbed(embed) : parseRaidViewComponent(components);
     if (raidInfo) {
+      // Get the user who triggered the raid view command
+      const viewerId = message.interaction?.user?.id;
+
       for (const { userId, fatigueMillis } of raidInfo) {
+        // Only set a reminder for the person who ran the command
+        if (viewerId && userId !== viewerId) continue;
+
         const remindAt = new Date(Date.now() + fatigueMillis);
 
         const existingReminder = await Reminder.findOne({
@@ -92,7 +98,7 @@ async function processMessage(message, oldMessage = null) {
               channelId: message.channel.id,
               remindAt,
               type: 'raid',
-              reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again`,
+              reminderMessage: `<@${userId}>, your raid fatigue has worn off! You can attack the boss again ⚔️`,
             });
           } catch (error) {
             if (error.code !== 11000) {

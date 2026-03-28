@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Endmin Dashboard</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    body { background:#1b1c24;font-family:"Inter",sans-serif;color:#f0f0f5;overflow-x:hidden; }
+    .sidebar { width:250px;height:100vh;position:fixed;left:0;top:0;background:#23242f;border-right:1px solid rgba(255,255,255,0.08);padding-top:25px; }
+    .sidebar .title { font-size:22px;font-weight:700;padding:0 25px 20px;color:#fff; }
+    .sidebar a { display:flex;align-items:center;padding:12px 25px;color:#e4e4ee;text-decoration:none;font-size:15px;transition:0.2s; }
+    .sidebar a:hover { background:rgba(255,255,255,0.06);color:#fff; }
+    .sidebar a.active { background:rgba(120,82,255,0.25);color:#fff;border-left:3px solid #8b5cf6; }
+    .sidebar a i { margin-right:12px;font-size:18px; }
+    .topbar { margin-left:250px;height:70px;background:rgba(255,255,255,0.06);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;padding:0 30px;color:#fff; }
+    .topbar .title { font-size:22px;font-weight:600; }
+    .bot-info { display:flex;align-items:center;gap:12px; }
+    .bot-status { width:12px;height:12px;background:#4ade80;border-radius:50%; }
+    .content { margin-left:250px;padding:30px;min-height:calc(100vh - 70px);color:#f0f0f5; }
+    .card { background:#2a2b36;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px;box-shadow:0 0 20px rgba(0,0,0,0.25);transition:0.25s ease;color:#f0f0f5; }
+    .card:hover { transform:translateY(-3px);box-shadow:0 0 30px rgba(0,0,0,0.35); }
+    .card h2 { font-size:20px;margin-bottom:15px;color:#ffffff; }
+    input,select,textarea { background:#1f2029 !important;border:1px solid rgba(255,255,255,0.1) !important;color:#ffffff !important; }
+    input::placeholder,textarea::placeholder { color:#b8b8c7 !important; }
+    label,.form-label { color:#f0f0f5 !important; }
+    pre { white-space:pre-wrap;font-size:13px;color:#e6e6f0 !important; }
+  </style>
+</head>
+
+<body>
+
+  <div class="sidebar">
+    <div class="title">Endmin</div>
+    <a data-page="dashboard" class="active" href="#"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a data-page="settings" href="#"><i class="bi bi-gear"></i> Settings</a>
+    <a data-page="worldattack" href="#"><i class="bi bi-bell"></i> WorldAttack</a>
+    <a data-page="logs" href="#"><i class="bi bi-terminal"></i> Logs</a>
+  </div>
+
+  <div class="topbar">
+    <div class="title">Dashboard</div>
+    <div class="bot-info">
+      <div class="bot-status"></div>
+      <span>Dev-Endmin</span>
+      <i class="bi bi-robot" style="font-size:22px;"></i>
+    </div>
+  </div>
+
+  <div class="content"></div>
+
+  <!-- SPA + Dashboard + WorldAttack + Settings -->
+  <script type="module">
+
+    /* ------------------------------
+       SPA LOADER
+    ------------------------------ */
+    async function loadPage(page) {
+      const res = await fetch(`/pages/${page}.html`);
+      const html = await res.text();
+      document.querySelector(".content").innerHTML = html;
+
+      document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
+      document.querySelector(`[data-page="${page}"]`).classList.add("active");
+
+      document.querySelector(".topbar .title").textContent =
+        page.charAt(0).toUpperCase() + page.slice(1);
+
+      if (page === "dashboard") setTimeout(loadDashboardData, 50);
+      if (page === "worldattack") setTimeout(loadWorldAttack, 50);
+      if (page === "settings") setTimeout(loadSettings, 50);
+      if (page === "logs") setTimeout(loadLogs, 50);
+    }
+
+    document.querySelectorAll(".sidebar a").forEach(a => {
+      a.addEventListener("click", e => {
+        e.preventDefault();
+        loadPage(a.dataset.page);
+      });
+    });
+
+    loadPage("dashboard");
+
+
+    /* ------------------------------
+       DASHBOARD LOGIC
+    ------------------------------ */
+    async function loadDashboardData() {
+      const stats = await fetch("/api/stats").then(r => r.json());
+
+      document.getElementById("statGuilds").textContent = stats.guilds;
+      document.getElementById("statUsers").textContent = stats.users;
+      document.getElementById("statUptime").textContent = Math.floor(stats.uptime) + "s";
+      document.getElementById("statCommands").textContent = stats.commands || 0;
+
+      loadActivityChart(stats.activity || []);
+      loadRecentLogs();
+    }
+
+    function loadActivityChart(data) {
+      const ctx = document.getElementById("activityChart");
+      if (!ctx) return;
+
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: data.map(x => x.hour),
+          datasets: [{
+            label: "Messages Processed",
+            data: data.map(x => x.count),
+            borderColor: "#8b5cf6",
+            backgroundColor: "rgba(139,92,246,0.2)",
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: {
+          plugins: { legend: { labels: { color: "#fff" } } },
+          scales: {
+            x: { ticks: { color: "#ccc" } },
+            y: { ticks: { color: "#ccc" } }
+          }
+        }
+      });
+    }
+
+    async function loadRecentLogs() {
+      const logs = await fetch("/api/logs").then(r => r.json());
+      const last10 = logs.slice(-10);
+      const el = document.getElementById("recentLogsContent");
+      if (el) el.textContent = last10.join("\n");
+    }
+
+
+    /* ------------------------------
+       WORLDATTACK LOGIC
+    ------------------------------ */
+    async function loadWorldAttack() {
+      const data = await fetch("/api/worldattack/stats").then(r => r.json());
+
+      document.getElementById("waStatus").textContent = data.enabled ? "Enabled" : "Disabled";
+      document.getElementById("waChannel").textContent = data.channel || "Not configured";
+      document.getElementById("waTriggers").textContent = data.triggersToday || 0;
+
+      loadWAChart(data.triggersGraph || []);
+      loadWAReminders(data.reminders || []);
+      loadWALogs(data.logs || []);
+    }
+
+    function loadWAChart(data) {
+      const ctx = document.getElementById("waChart");
+      if (!ctx) return;
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map(x => x.day),
+          datasets: [{
+            label: "Triggers",
+            data: data.map(x => x.count),
+            backgroundColor: "rgba(139,92,246,0.6)",
+            borderColor: "#8b5cf6",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          plugins: { legend: { labels: { color: "#fff" } } },
+          scales: {
+            x: { ticks: { color: "#ccc" } },
+            y: { ticks: { color: "#ccc" } }
+          }
+        }
+      });
+    }
+
+    function loadWAReminders(list) {
+      const el = document.getElementById("waRemindersContent");
+      if (!el) return;
+
+      if (!list.length) {
+        el.textContent = "No active reminders.";
+        return;
+      }
+
+      el.textContent = list.map(r =>
+        `[${r.id}] ${r.type} → ${r.time} (${r.status})`
+      ).join("\n");
+    }
+
+    function loadWALogs(list) {
+      const el = document.getElementById("waLogsContent");
+      if (!el) return;
+      el.textContent = list.join("\n");
+    }
+
+    document.addEventListener("click", async (e) => {
+      if (e.target.id === "waToggle") {
+        await fetch("/api/worldattack/toggle", { method: "POST" });
+        loadWorldAttack();
+      }
+
+      if (e.target.id === "waRetryFailed") {
+        await fetch("/api/worldattack/retry", { method: "POST" });
+        loadWorldAttack();
+      }
+
+      if (e.target.id === "waChangeChannel") {
+        const newChannel = prompt("Enter new channel ID:");
+        if (newChannel) {
+          await fetch("/api/worldattack/channel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ channel: newChannel })
+          });
+          loadWorldAttack();
+        }
+      }
+    });
+
+
+    /* ------------------------------
+       SETTINGS LOGIC
+    ------------------------------ */
+    async function loadSettings() {
+      const data = await fetch("/api/settings").then(r => r.json());
+
+      document.getElementById("setPrefix").value = data.bot.prefix;
+      document.getElementById("setLanguage").value = data.bot.language;
+
+      document.getElementById("setWAChannel").value = data.worldattack.channel || "";
+      document.getElementById("setWAEnabled").value = data.worldattack.enabled ? "true" : "false";
+
+      document.getElementById("setRole1").value = data.autorole.tier1 || "";
+      document.getElementById("setRole2").value = data.autorole.tier2 || "";
+      document.getElementById("setRole3").value = data.autorole.tier3 || "";
+    }
+
+    document.addEventListener("click", async (e) => {
+      if (e.target.id === "saveSettings") {
+        const payload = {
+          bot: {
+            prefix: document.getElementById("setPrefix").value,
+            language: document.getElementById("setLanguage").value
+          },
+          worldattack: {
+            channel: document.getElementById("setWAChannel").value,
+            enabled: document.getElementById("setWAEnabled").value === "true"
+          },
+          autorole: {
+            tier1: document.getElementById("setRole1").value,
+            tier2: document.getElementById("setRole2").value,
+            tier3: document.getElementById("setRole3").value
+          }
+        };
+
+        await fetch("/api/settings/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const toast = document.getElementById("settingsToast");
+        toast.style.display = "block";
+        setTimeout(() => toast.style.display = "none", 2000);
+      }
+    });
+
+
+    /* ------------------------------
+       LOGS PAGE
+    ------------------------------ */
+    async function loadLogs() {
+      const logs = await fetch("/api/logs").then(r => r.json());
+      const el = document.getElementById("logsContent");
+      if (el) el.textContent = logs.join("\n");
+    }
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,242 @@
+require("dotenv").config({
+  path: process.env.NODE_ENV === "local" ? ".env.local" : ".env"
+});
+
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  Collection,
+  Events,
+  PermissionsBitField,
+  ActivityType,
+  Options
+} = require("discord.js");
+
+const mongoose = require("mongoose");
+const fs = require("fs");
+const path = require("path");
+
+const { initTimerManager } = require("./utils/timerManager");
+const { initializeSettings } = require("./utils/settingsManager");
+const { initializeUserSettings } = require("./utils/userSettingsManager");
+const { sendError } = require("./utils/logger");
+const createDashboard = require("./dashboard/dashboardServer");
+
+const {
+  processInventoryMessage,
+  processInventoryReaction,
+  processInventoryUpdate
+} = require("./utils/inventoryProcessor");
+
+process.on("unhandledRejection", async (reason, promise) => {
+  console.error("[CRITICAL] Unhandled Rejection at:", promise, "reason:", reason);
+  await sendError(`[CRITICAL] Unhandled Rejection: ${reason?.message || reason}`);
+});
+
+process.on("uncaughtException", async (error) => {
+  console.error("[CRITICAL] Uncaught Exception:", error);
+  await sendError(`[CRITICAL] Uncaught Exception: ${error.message}`);
+});
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildIntegrations,
+    GatewayIntentBits.GuildMessageReactions
+  ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.Reaction
+  ],
+  makeCache: Options.cacheWithLimits({
+    ...Options.DefaultMakeCacheSettings,
+    MessageManager: 200,
+    GuildMemberManager: 20,
+    UserManager: 200,
+    ReactionManager: 100,
+    ThreadManager: 0,
+    PresenceManager: 0,
+    GuildScheduledEventManager: 0
+  }),
+  sweepers: {
+    ...Options.DefaultSweeperSettings,
+    messages: { interval: 3600, lifetime: 1800 },
+    users: { interval: 3600, filter: () => (user) => user.id !== client.user.id }
+  }
+});
+
+client.inventorySessions = new Map();
+client.isReady = false;
+
+client._dashboardLogs = [];
+client.dashLog = function (msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  client._dashboardLogs.push(line);
+  if (client._dashboardLogs.length > 200) client._dashboardLogs.shift();
+};
+
+client.commandCount = 0;
+client.activityStats = [];
+
+function trackActivity() {
+  const hour = new Date().getHours();
+  const entry = client.activityStats.find((x) => x.hour === hour);
+  if (entry) entry.count++;
+  else client.activityStats.push({ hour, count: 1 });
+  if (client.activityStats.length > 24) client.activityStats.shift();
+}
+
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, "commands");
+
+function loadCommandsRecursively(dir) {
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      loadCommandsRecursively(fullPath);
+      continue;
+    }
+    if (!file.endsWith(".js")) continue;
+    const command = require(fullPath);
+    if (Array.isArray(command.data)) {
+      for (const cmd of command.data) {
+        client.commands.set(cmd.name, { data: cmd, execute: command.execute });
+        console.log(`Loaded command: ${cmd.name}`);
+      }
+      continue;
+    }
+    if (command.data && command.execute) {
+      client.commands.set(command.data.name, command);
+      console.log(`Loaded command: ${command.data.name}`);
+    }
+  }
+}
+
+loadCommandsRecursively(commandsPath);
+
+const eventsPath = path.join(__dirname, "events");
+const eventFiles = fs.readdirSync(eventsPath).filter((file) => file.endsWith(".js"));
+
+for (const file of eventFiles) {
+  const filePath = path.join(eventsPath, file);
+  try {
+    const event = require(filePath);
+    if (!event.name || !event.execute) continue;
+    if (event.once) client.once(event.name, (...args) => event.execute(...args, client));
+    else client.on(event.name, (...args) => event.execute(...args, client));
+    console.log(`[EVENT LOADED] ${event.name} from ${file}`);
+  } catch (err) {
+    console.error(`[EVENT ERROR] Failed to load ${file}:`, err);
+  }
+}
+
+const { processMessage, processBossAndCardMessage } = require("./utils/messageProcessor");
+
+client.on(Events.MessageCreate, async (message) => {
+  trackActivity();
+  await processMessage(message);
+  await processBossAndCardMessage(message);
+  await processInventoryMessage(message, client);
+});
+
+client.on(Events.MessageUpdate, async (oldMessage, newMessage) => {
+  if (newMessage.author.id !== "1269481871021047891") return;
+  trackActivity();
+  await processMessage(newMessage, oldMessage);
+  await processInventoryUpdate(newMessage, client);
+});
+
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+  await processInventoryReaction(reaction, user, client);
+});
+
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== "sync") return;
+
+  client.commandCount++;
+
+  if (!interaction.memberPermissions.has(PermissionsBitField.Flags.Administrator)) {
+    return interaction.reply({ content: "⛔ You do not have permission to use this command.", ephemeral: true });
+  }
+
+  const scope = interaction.options.getString("scope");
+
+  try {
+    if (scope === "global") {
+      await client.application.commands.set([...client.commands.values()].map((c) => c.data));
+      return interaction.reply({ content: "🌍 Global commands synced.", ephemeral: true });
+    }
+    if (scope === "guild") {
+      await interaction.guild.commands.set([...client.commands.values()].map((c) => c.data));
+      return interaction.reply({ content: "🏠 Guild commands synced.", ephemeral: true });
+    }
+    return interaction.reply({ content: "❌ Invalid scope.", ephemeral: true });
+  } catch (err) {
+    console.error("Sync error:", err);
+    return interaction.reply({ content: "❌ Sync failed.", ephemeral: true });
+  }
+});
+
+client.on(Events.GuildCreate, async (guild) => {
+  console.log(`[GUILD JOIN] Added to guild: ${guild.name} (${guild.id})`);
+});
+
+(async () => {
+  try {
+    if (!process.env.MONGO_URI) throw new Error("Missing MONGO_URI");
+    if (!process.env.TOKEN) throw new Error("Missing TOKEN");
+
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("Connected to MongoDB");
+
+    const Reminder = require("./models/Reminder");
+    await Reminder.syncIndexes();
+
+    const worldAttack = require("./commands/worldAttack");
+
+    client.once(Events.ClientReady, async (readyClient) => {
+      console.log(`Bot logged in as ${readyClient.user.tag}`);
+
+      client.isReady = true;
+
+      createDashboard(client);
+      client.dashLog("Dashboard started.");
+
+      await initializeSettings();
+      await initializeUserSettings();
+      initTimerManager(readyClient);
+
+      if (worldAttack.init) {
+        await worldAttack.init(readyClient);
+        client.dashLog("WorldAttack initialized.");
+      }
+
+      try {
+        await client.application.commands.set([...client.commands.values()].map((c) => c.data));
+        client.dashLog("Commands synced globally.");
+      } catch (err) {
+        client.dashLog("Sync error: " + err.message);
+      }
+
+      const updateStatus = () => {
+        const serverCount = readyClient.guilds.cache.size;
+        readyClient.user.setActivity(`Luvi bot in ${serverCount} servers`, { type: ActivityType.Watching });
+      };
+
+      updateStatus();
+      setInterval(updateStatus, 300000);
+    });
+
+    await client.login(process.env.TOKEN);
+  } catch (err) {
+    console.error("Failed to connect or login:", err);
+    process.exit(1);
+  }
+})();

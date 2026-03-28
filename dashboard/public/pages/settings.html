@@ -1,0 +1,64 @@
+<div class="card">
+  <h2>Bot Settings</h2>
+
+  <div class="mb-3">
+    <label class="form-label">Prefix</label>
+    <input id="setPrefix" type="text" class="form-control" placeholder="!">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Language</label>
+    <select id="setLanguage" class="form-select">
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+    </select>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <h2>WorldAttack Settings</h2>
+
+  <div class="mb-3">
+    <label class="form-label">Channel ID</label>
+    <input id="setWAChannel" type="text" class="form-control" placeholder="1234567890">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Enabled</label>
+    <select id="setWAEnabled" class="form-select">
+      <option value="true">Enabled</option>
+      <option value="false">Disabled</option>
+    </select>
+  </div>
+</div>
+
+<div class="card mt-4">
+  <h2>Autorole</h2>
+
+  <div class="mb-3">
+    <label class="form-label">Tier 1 Role ID</label>
+    <input id="setRole1" type="text" class="form-control">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Tier 2 Role ID</label>
+    <input id="setRole2" type="text" class="form-control">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Tier 3 Role ID</label>
+    <input id="setRole3" type="text" class="form-control">
+  </div>
+</div>
+
+<div class="text-end mt-4">
+  <button id="saveSettings" class="btn btn-primary" style="background:#7c3aed;border:none;">
+    Save Settings
+  </button>
+</div>
+
+<div id="settingsToast"
+     style="display:none;margin-top:20px;padding:15px;border-radius:10px;
+            background:#1f2937;border:1px solid rgba(255,255,255,0.1);color:#fff;">
+  Settings saved successfully.
+</div>

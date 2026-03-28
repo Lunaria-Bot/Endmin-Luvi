@@ -1,0 +1,58 @@
+<div class="card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="m-0">Logs</h2>
+
+    <div class="d-flex align-items-center gap-2">
+      <input id="logSearch" type="text" class="form-control form-control-sm"
+             placeholder="Search logs..."
+             style="background:#11111a;border:1px solid rgba(255,255,255,0.08);color:#fff;width:200px;">
+
+      <button id="refreshLogs" class="btn btn-sm btn-primary"
+              style="background:#7c3aed;border:none;">
+        <i class="bi bi-arrow-clockwise"></i>
+      </button>
+    </div>
+  </div>
+
+  <div id="logContainer"
+       style="max-height:500px;overflow-y:auto;background:#14141f;
+              border-radius:10px;padding:15px;border:1px solid rgba(255,255,255,0.05);">
+    <pre id="fullLogs" style="margin:0;">Loading...</pre>
+  </div>
+</div>
+
+<script>
+  let allLogs = [];
+
+  async function loadLogs() {
+    const logs = await fetch("/api/logs").then(r => r.json());
+    allLogs = logs;
+    renderLogs(logs);
+  }
+
+  function renderLogs(logs) {
+    const container = document.getElementById("fullLogs");
+
+    if (!logs.length) {
+      container.textContent = "No logs available.";
+      return;
+    }
+
+    container.textContent = logs.join("\n");
+  }
+
+  // Search filter
+  document.getElementById("logSearch").addEventListener("input", (e) => {
+    const query = e.target.value.toLowerCase();
+    const filtered = allLogs.filter(l => l.toLowerCase().includes(query));
+    renderLogs(filtered);
+  });
+
+  // Manual refresh
+  document.getElementById("refreshLogs").addEventListener("click", loadLogs);
+
+  // Auto-refresh every 10 seconds
+  setInterval(loadLogs, 10000);
+
+  loadLogs();
+</script>

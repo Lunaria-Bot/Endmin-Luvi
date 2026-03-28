@@ -1,0 +1,111 @@
+<div class="row g-4">
+
+  <!-- Stats Cards -->
+  <div class="col-md-3">
+    <div class="card text-center">
+      <h2>Guilds</h2>
+      <p id="statGuilds" style="font-size:28px;font-weight:700;">0</p>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card text-center">
+      <h2>Users</h2>
+      <p id="statUsers" style="font-size:28px;font-weight:700;">0</p>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card text-center">
+      <h2>Uptime</h2>
+      <p id="statUptime" style="font-size:28px;font-weight:700;">0s</p>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card text-center">
+      <h2>Commands</h2>
+      <p id="statCommands" style="font-size:28px;font-weight:700;">0</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Graph -->
+<div class="card mt-4">
+  <h2>Bot Activity (Last 24h)</h2>
+  <canvas id="activityChart" height="120"></canvas>
+</div>
+
+<!-- Recent Logs -->
+<div class="card mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="m-0">Recent Logs</h2>
+    <button id="refreshRecentLogs" class="btn btn-sm btn-primary" style="background:#7c3aed;border:none;">
+      <i class="bi bi-arrow-clockwise"></i>
+    </button>
+  </div>
+
+  <div id="recentLogs"
+       style="max-height:200px;overflow-y:auto;background:#14141f;
+              border-radius:10px;padding:15px;border:1px solid rgba(255,255,255,0.05);">
+    <pre id="recentLogsContent" style="margin:0;">Loading...</pre>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  async function loadDashboard() {
+    const stats = await fetch("/api/stats").then(r => r.json());
+
+    document.getElementById("statGuilds").textContent = stats.guilds;
+    document.getElementById("statUsers").textContent = stats.users;
+    document.getElementById("statUptime").textContent = Math.floor(stats.uptime) + "s";
+    document.getElementById("statCommands").textContent = stats.commands || 0;
+
+    loadActivityChart(stats.activity || []);
+    loadRecentLogs();
+  }
+
+  // Graph
+  function loadActivityChart(data) {
+    const ctx = document.getElementById("activityChart");
+
+    new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: data.map(x => x.hour),
+        datasets: [{
+          label: "Messages Processed",
+          data: data.map(x => x.count),
+          borderColor: "#8b5cf6",
+          backgroundColor: "rgba(139,92,246,0.2)",
+          borderWidth: 2,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        plugins: { legend: { labels: { color: "#fff" } } },
+        scales: {
+          x: { ticks: { color: "#ccc" } },
+          y: { ticks: { color: "#ccc" } }
+        }
+      }
+    });
+  }
+
+  // Recent logs
+  async function loadRecentLogs() {
+    const logs = await fetch("/api/logs").then(r => r.json());
+    const last10 = logs.slice(-10);
+
+    document.getElementById("recentLogsContent").textContent = last10.join("\n");
+  }
+
+  document.getElementById("refreshRecentLogs").addEventListener("click", loadRecentLogs);
+
+  loadDashboard();
+</script>

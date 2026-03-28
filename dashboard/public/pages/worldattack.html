@@ -1,0 +1,63 @@
+<div class="row g-4">
+
+  <!-- Module Status -->
+  <div class="col-md-4">
+    <div class="card text-center">
+      <h2>Module Status</h2>
+      <p id="waStatus" style="font-size:26px;font-weight:700;">Loading...</p>
+      <button id="waToggle" class="btn btn-primary mt-2" style="background:#7c3aed;border:none;">
+        Toggle
+      </button>
+    </div>
+  </div>
+
+  <!-- Channel -->
+  <div class="col-md-4">
+    <div class="card text-center">
+      <h2>Channel</h2>
+      <p id="waChannel" style="font-size:20px;font-weight:600;">Loading...</p>
+      <button id="waChangeChannel" class="btn btn-secondary mt-2">Change</button>
+    </div>
+  </div>
+
+  <!-- Triggers -->
+  <div class="col-md-4">
+    <div class="card text-center">
+      <h2>Triggers Today</h2>
+      <p id="waTriggers" style="font-size:28px;font-weight:700;">0</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Graph -->
+<div class="card mt-4">
+  <h2>Triggers (Last 7 Days)</h2>
+  <canvas id="waChart" height="120"></canvas>
+</div>
+
+<!-- Reminders -->
+<div class="card mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="m-0">Active Reminders</h2>
+    <button id="waRetryFailed" class="btn btn-sm btn-primary" style="background:#7c3aed;border:none;">
+      Retry Failed
+    </button>
+  </div>
+
+  <div id="waReminders"
+       style="max-height:250px;overflow-y:auto;background:#14141f;
+              border-radius:10px;padding:15px;border:1px solid rgba(255,255,255,0.05);">
+    <pre id="waRemindersContent" style="margin:0;">Loading...</pre>
+  </div>
+</div>
+
+<!-- Logs -->
+<div class="card mt-4">
+  <h2>WorldAttack Logs</h2>
+  <div id="waLogs"
+       style="max-height:250px;overflow-y:auto;background:#14141f;
+              border-radius:10px;padding:15px;border:1px solid rgba(255,255,255,0.05);">
+    <pre id="waLogsContent" style="margin:0;">Loading...</pre>
+  </div>
+</div>

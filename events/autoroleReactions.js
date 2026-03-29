@@ -11,13 +11,7 @@ module.exports = {
 
     // Vérifie que le bouton existe
     const config = roleButtons[customId];
-    if (!config) {
-      console.warn(`[AUTOROLE] Unknown button: ${customId}`);
-      return interaction.reply({
-        content: "❌ This autorole button is no longer valid.",
-        ephemeral: true
-      });
-    }
+    if (!config) return; // ignore non-autorole buttons (stamina_, etc.)
 
     // Vérifie la guild
     if (!interaction.guild) {

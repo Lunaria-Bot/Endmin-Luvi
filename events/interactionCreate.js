@@ -145,12 +145,14 @@ module.exports = {
             }
 
         } catch (fatal) {
-            console.error(`[FATAL] Unhandled error in interactionCreate:`, fatal);
-            await sendError(`[FATAL] Unhandled error in interactionCreate: ${fatal.message}`);
+            // Ignore expired interactions silently
+            if (fatal.code === 10062) return;
 
-            if (fatal.code) {
-                console.error(`[DISCORD ERROR] Code: ${fatal.code}, Message: ${fatal.message}`);
-            }
+            console.error(`[FATAL] Unhandled error in interactionCreate:`, fatal);
+
+            try {
+                await sendError(`[FATAL] Unhandled error in interactionCreate: ${fatal.message}`);
+            } catch {}
         }
     },
 };

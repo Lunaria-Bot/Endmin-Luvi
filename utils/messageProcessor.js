@@ -95,10 +95,12 @@ async function processMessage(message, oldMessage = null) {
           recent.forEach(m => {
             console.log(`[RAID DEBUG]  - author: ${m.author.username} | bot: ${m.author.bot} | age: ${Date.now() - m.createdTimestamp}ms | content: "${m.content.slice(0, 60)}"`);
           });
+          const LUVI_MENTION = `<@${LUVI_ID}>`;
           const trigger = recent.find(m =>
             !m.author.bot &&
-            /\bluvi\b.{0,10}\braid\b/i.test(m.content) &&
-            Date.now() - m.createdTimestamp < 30000
+            (m.content.includes(LUVI_MENTION) || /\bluvi\b/i.test(m.content)) &&
+            /\braid\b/i.test(m.content) &&
+            Date.now() - m.createdTimestamp < 60000
           );
           if (trigger) {
             triggerId = trigger.author.id;

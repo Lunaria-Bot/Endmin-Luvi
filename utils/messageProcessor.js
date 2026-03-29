@@ -89,51 +89,62 @@ async function processMessage(message, oldMessage = null) {
         }
       }
 
-      if (!triggerId) return;
+      if (!triggerId) {
+        console.log('[RAID] Could not identify trigger user, skipping raid fatigue reminder');
+      } else {
+        console.log(`[RAID] Trigger: id=${triggerId} displayName="${triggerDisplayName}" username="${triggerUsername}"`);
+        console.log(`[RAID] Fatigued entries:`, raidInfo.map(e => `name="${e.displayName}"`).join(', '));
 
-      // Find if the trigger user appears as fatigued in the party list
-      const myEntry = raidInfo.find(entry => {
-        // Match by Discord ID if available
-        if (entry.userId && entry.userId === triggerId) return true;
-        // Match by display name or username (case-insensitive)
-        if (entry.displayName) {
-          const dn = entry.displayName.toLowerCase();
-          if (triggerDisplayName && dn === triggerDisplayName.toLowerCase()) return true;
-          if (triggerUsername && dn === triggerUsername.toLowerCase()) return true;
-        }
-        return false;
-      });
+        // Find if the trigger user appears as fatigued in the party list
+        const myEntry = raidInfo.find(entry => {
+          // Match by Discord ID if available
+          if (entry.userId && entry.userId === triggerId) return true;
+          // Match by display name or username (case-insensitive)
+          if (entry.displayName) {
+            const dn = entry.displayName.toLowerCase();
+            if (triggerDisplayName && dn === triggerDisplayName.toLowerCase()) return true;
+            if (triggerUsername && dn === triggerUsername.toLowerCase()) return true;
+          }
+          return false;
+        });
 
-      if (!myEntry) return; // Trigger user is not fatigued, skip
+        if (!myEntry) {
+          console.log(`[RAID] Trigger user not found in fatigued list, skipping`);
+        } else {
+          console.log(`[RAID] Match found! fatigueMillis=${myEntry.fatigueMillis}`);
 
-      const remindAt = new Date(Date.now() + myEntry.fatigueMillis);
+          const remindAt = new Date(Date.now() + myEntry.fatigueMillis);
 
-      const existingReminder = await Reminder.findOne({
-        userId: triggerId,
-        type: 'raid',
-        remindAt: {
-          $gte: new Date(remindAt.getTime() - 5000),
-          $lte: new Date(remindAt.getTime() + 5000),
-        },
-      });
-
-      if (!existingReminder) {
-        try {
-          await setTimer(message.client, {
+          const existingReminder = await Reminder.findOne({
             userId: triggerId,
-            channelId: message.channel.id,
-            remindAt,
             type: 'raid',
-            reminderMessage: `<@${triggerId}>, your raid fatigue has worn off! You can attack the boss again`,
+            remindAt: {
+              $gte: new Date(remindAt.getTime() - 5000),
+              $lte: new Date(remindAt.getTime() + 5000),
+            },
           });
-        } catch (error) {
-          if (error.code !== 11000) {
-            console.error(`[ERROR] Failed to create reminder for raid fatigue: ${error.message}`, error);
-            await sendError(`[ERROR] Failed to create reminder for raid fatigue: ${error.message}`);
+
+          if (!existingReminder) {
+            try {
+              await setTimer(message.client, {
+                userId: triggerId,
+                channelId: message.channel.id,
+                remindAt,
+                type: 'raid',
+                reminderMessage: `<@${triggerId}>, your raid fatigue has worn off! You can attack the boss again`,
+              });
+              console.log(`[RAID] Reminder set for ${triggerId} at ${remindAt}`);
+            } catch (error) {
+              if (error.code !== 11000) {
+                console.error(`[ERROR] Failed to create reminder for raid fatigue: ${error.message}`, error);
+                await sendError(`[ERROR] Failed to create reminder for raid fatigue: ${error.message}`);
+              }
+            }
+          } else {
+            console.log(`[RAID] Reminder already exists, skipping`);
           }
         }
       }
-    }
 
     // EXPEDITION RESEND
     const isResendFromEmbed = embed?.title?.endsWith("Expedition Resend Results");

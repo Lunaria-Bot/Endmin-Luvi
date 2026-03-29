@@ -145,6 +145,7 @@ async function processMessage(message, oldMessage = null) {
           }
         }
       }
+    }
 
     // EXPEDITION RESEND
     const isResendFromEmbed = embed?.title?.endsWith("Expedition Resend Results");

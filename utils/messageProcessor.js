@@ -78,14 +78,31 @@ async function processMessage(message, oldMessage = null) {
         triggerDisplayName = message.interaction.member?.displayName ?? message.interaction.user.displayName ?? null;
         triggerUsername = message.interaction.user.username ?? null;
       } else if (message.reference?.messageId) {
-        // Text command: @Luvi raid — fetch the original message to get the author
+        // Text command with reply reference: fetch the original message
         try {
           const refMsg = await message.channel.messages.fetch(message.reference.messageId);
           triggerId = refMsg.author.id;
           triggerDisplayName = refMsg.member?.displayName ?? refMsg.author.displayName ?? null;
           triggerUsername = refMsg.author.username ?? null;
         } catch {
-          // silently skip if we can't resolve the trigger
+          // silently skip
+        }
+      } else {
+        // Standalone message (no reference): scan recent messages for @Luvi raid
+        try {
+          const recent = await message.channel.messages.fetch({ limit: 10, before: message.id });
+          const trigger = recent.find(m =>
+            !m.author.bot &&
+            /\bluvi\b.{0,10}\braid\b/i.test(m.content) &&
+            Date.now() - m.createdTimestamp < 30000
+          );
+          if (trigger) {
+            triggerId = trigger.author.id;
+            triggerDisplayName = trigger.member?.displayName ?? trigger.author.displayName ?? null;
+            triggerUsername = trigger.author.username ?? null;
+          }
+        } catch {
+          // silently skip
         }
       }
 

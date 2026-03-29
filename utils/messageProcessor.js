@@ -91,6 +91,10 @@ async function processMessage(message, oldMessage = null) {
         // Standalone message (no reference): scan recent messages for @Luvi raid
         try {
           const recent = await message.channel.messages.fetch({ limit: 10, before: message.id });
+          console.log(`[RAID DEBUG] Scanning ${recent.size} recent messages:`);
+          recent.forEach(m => {
+            console.log(`[RAID DEBUG]  - author: ${m.author.username} | bot: ${m.author.bot} | age: ${Date.now() - m.createdTimestamp}ms | content: "${m.content.slice(0, 60)}"`);
+          });
           const trigger = recent.find(m =>
             !m.author.bot &&
             /\bluvi\b.{0,10}\braid\b/i.test(m.content) &&
@@ -101,8 +105,8 @@ async function processMessage(message, oldMessage = null) {
             triggerDisplayName = trigger.member?.displayName ?? trigger.author.displayName ?? null;
             triggerUsername = trigger.author.username ?? null;
           }
-        } catch {
-          // silently skip
+        } catch (err) {
+          console.log(`[RAID DEBUG] Error scanning recent messages: ${err.message}`);
         }
       }
 
